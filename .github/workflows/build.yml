@@ -1,0 +1,130 @@
+name: Build Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+            panel/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Lint, format and test (workspace)
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace
+
+      - name: Build hyper-node
+        run: cargo build --release --bin hyper-node
+
+      - name: Build hyper-panel
+        run: cargo build --release --package hyper-panel
+
+      - name: Determine architecture
+        id: arch
+        run: |
+          if [ "${{ runner.arch }}" = "X64" ]; then
+            echo "name=amd64" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=arm64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rename binaries
+        run: |
+          mkdir -p dist
+          cp target/release/hyper-node dist/hyper-node-linux-${{ steps.arch.outputs.name }}
+          cp target/release/hyper-panel dist/hyper-panel-linux-${{ steps.arch.outputs.name }}
+          ls -lh dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ steps.arch.outputs.name }}
+          path: dist/
+
+  windows-node:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build hyper-node (Windows)
+        run: cargo build --release --bin hyper-node
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/hyper-node.exe dist/hyper-node-windows-amd64.exe
+          ls -lh dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-windows-amd64
+          path: dist/
+
+  release:
+    needs: [build, windows-node]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.email "actions@users.noreply.github.com"
+          git config user.name "GitHub Actions"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List files
+        run: ls -lh artifacts/
+
+      - name: Create/Update Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          ls -lh artifacts/
+          # overwrite binaries if release exists; create it otherwise (source tarball generated on first create)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading artifacts (clobber)..."
+            gh release upload "$TAG" artifacts/hyper-node-linux-* artifacts/hyper-panel-linux-* artifacts/hyper-node-windows-amd64.exe --clobber
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "HyperScope $TAG" \
+              --notes "Automated build. Binaries: hyper-node + hyper-panel (x86_64 / arm64) + hyper-node-windows-amd64.exe." \
+              artifacts/hyper-node-linux-* artifacts/hyper-panel-linux-* artifacts/hyper-node-windows-amd64.exe
+          fi

@@ -1,0 +1,25 @@
+# Secrets and environment
+.env
+
+# Rust build artifacts
+target/
+panel/target/
+
+# Local binaries (Release assets use linux-amd64/arm64 + windows-amd64 names)
+hyper-node
+hyper-panel
+
+# Runtime config with keys (generated on the host, not committed)
+nodes.json
+auth.json
+
+# Backups
+*.bak*
+
+# Python cache (legacy)
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db

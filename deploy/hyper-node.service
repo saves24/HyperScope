@@ -1,0 +1,15 @@
+[Unit]
+Description=hyper-node - system monitoring collector
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/hyper-node serve
+Restart=on-failure
+RestartSec=5
+StandardOutput=null
+StandardError=null
+
+[Install]
+WantedBy=multi-user.target
