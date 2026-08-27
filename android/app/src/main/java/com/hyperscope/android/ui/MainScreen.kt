@@ -1,8 +1,6 @@
 package com.hyperscope.android.ui
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -10,7 +8,6 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,9 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 
+// Nodes are selected from the top bar of the Dashboard, not the bottom nav.
 enum class Tab(val label: String, val icon: ImageVector) {
     Dashboard("概览", Icons.Filled.Dashboard),
-    Nodes("节点", Icons.Filled.Storage),
     History("历史", Icons.Filled.List),
     Logs("日志", Icons.Filled.Info),
     Settings("设置", Icons.Filled.Settings),
@@ -42,16 +39,7 @@ fun MainScreen(vm: AppViewModel) {
                 Tab.entries.forEach { t ->
                     NavigationBarItem(
                         selected = tab == t,
-                        onClick = {
-                            tab = t
-                            when (t) {
-                                Tab.Nodes -> vm.loadNodes()
-                                Tab.History -> if (vm.nodes.value.nodes.isNotEmpty())
-                                    vm.loadHistory(vm.nodes.value.nodes.first().id)
-                                Tab.Logs -> vm.loadEvents()
-                                else -> {}
-                            }
-                        },
+                        onClick = { tab = t },
                         icon = { Icon(t.icon, contentDescription = t.label) },
                         label = { Text(t.label) },
                     )
@@ -62,7 +50,6 @@ fun MainScreen(vm: AppViewModel) {
         Box(Modifier.fillMaxSize().padding(pad)) {
             when (tab) {
                 Tab.Dashboard -> DashboardScreen(vm)
-                Tab.Nodes -> NodesScreen(vm)
                 Tab.History -> HistoryScreen(vm)
                 Tab.Logs -> LogsScreen(vm)
                 Tab.Settings -> SettingsScreen(vm)

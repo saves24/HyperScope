@@ -6,27 +6,26 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
-/** Persisted user settings (server URL, auth token, theme). */
+/** Local node list + app prefs. The phone is the panel, so nodes live here. */
 class SettingsStore(private val context: Context) {
-    private val keyBase = stringPreferencesKey("base_url")
-    private val keyToken = stringPreferencesKey("token")
-    private val keyUser = stringPreferencesKey("user")
+    private val keyNodes = stringPreferencesKey("nodes")
     private val keyTheme = stringPreferencesKey("theme")
+    private val json = Json { ignoreUnknownKeys = true }
+    private val nodesSerializer = ListSerializer(NodeConfig.serializer())
 
-    val baseUrl: Flow<String> = context.dataStore.data.map { it[keyBase] ?: "http://192.168.1.7:8088" }
-    val token: Flow<String> = context.dataStore.data.map { it[keyToken] ?: "" }
-    val user: Flow<String> = context.dataStore.data.map { it[keyUser] ?: "" }
+    val nodes: Flow<List<NodeConfig>> = context.dataStore.data.map {
+        val raw = it[keyNodes] ?: "[]"
+        runCatching { json.decodeFromString(nodesSerializer, raw) }.getOrDefault(emptyList())
+    }
     val theme: Flow<String> = context.dataStore.data.map { it[keyTheme] ?: "auto" }
 
-    suspend fun setBaseUrl(v: String) = context.dataStore.edit { it[keyBase] = v }
-    suspend fun setToken(v: String) = context.dataStore.edit { it[keyToken] = v }
-    suspend fun setUser(v: String) = context.dataStore.edit { it[keyUser] = v }
-    suspend fun setTheme(v: String) = context.dataStore.edit { it[keyTheme] = v }
-    suspend fun logout() = context.dataStore.edit {
-        it.remove(keyToken)
-        it.remove(keyUser)
+    suspend fun saveNodes(list: List<NodeConfig>) {
+        context.dataStore.edit { it[keyNodes] = json.encodeToString(nodesSerializer, list) }
     }
+    suspend fun setTheme(v: String) = context.dataStore.edit { it[keyTheme] = v }
 }

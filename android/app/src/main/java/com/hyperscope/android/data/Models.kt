@@ -1,77 +1,67 @@
 package com.hyperscope.android.data
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * A monitored node = a hyper-node HTTP server the phone connects to directly.
+ * No central panel is involved: the phone IS the panel.
+ */
 @Serializable
-data class LoginRequest(val user: String, val pass: String)
-
-@Serializable
-data class LoginResponse(val ok: Boolean? = null, val error: String? = null)
-
-@Serializable
-data class NodeSummary(
-    val id: String = "",
+data class NodeConfig(
     val name: String = "",
-    val owner: String = "",
-    val tls: Boolean = false,
-    @SerialName("cert_verified") val certVerified: Boolean = false,
-    val status: String = "",
-    val online: Boolean = false,
-    @SerialName("node_name") val nodeName: String = "",
+    val addr: String = "",
+    val port: Int = 5000,
+    val key: String = "",
+)
+
+/** Node [/system] payload (field names match hyper-node metrics.rs). */
+@Serializable
+data class NodeSystem(
+    val node_name: String = "",
     val version: String = "",
+    val kernel: String = "",
+    val cpu: Double = 0.0,
+    val cpu_temp: String = "N/A",
+    val cpu_temp_raw: Double? = null,
+    val gpu_temp: String = "N/A",
+    val gpu_temp_raw: Double? = null,
+    val cpu_cores: Int = 0,
+    val cpu_mhz: String = "",
+    val mem_total: String = "",
+    val mem_used: String = "",
+    val mem_percent: Double = 0.0,
+    val disk_total: String = "",
+    val disk_used: String = "",
+    val disk_percent: Double = 0.0,
+    val loadavg: String = "",
+    val uptime: String = "",
+    val processes: Int = 0,
 )
 
 @Serializable
-data class NodesResponse(val nodes: List<NodeSummary> = emptyList())
+data class DiskInfo(val name: String = "", val total: String = "", val used: String = "", val percent: Double = 0.0)
 
 @Serializable
-data class ApiOk(val ok: Boolean? = null, val error: String? = null, val name: String? = null)
+data class DisksResponse(val disks: List<DiskInfo> = emptyList())
 
 @Serializable
-data class SystemResponse(
-    val ok: Boolean? = null,
-    val hostname: String? = null,
-    val version: String? = null,
-    val kernel: String? = null,
-    val uptime: String? = null,
-    val cpu: Double? = null,
-    val memory: MemoryStats? = null,
-    val load: String? = null,
-    val procs: Long? = null,
-    val temp: TempStats? = null,
+data class ProcInfo(
+    val pid: Long = 0,
+    val name: String = "",
+    val cpu: Double = 0.0,
+    val rss_mb: Double = 0.0,
+    val state: String = "",
 )
 
 @Serializable
-data class MemoryStats(
-    val total: Long = 0,
-    val used: Long = 0,
-    val free: Long = 0,
-    val percent: Double? = null,
-)
+data class ProcessesResponse(val processes: List<ProcInfo> = emptyList())
 
-@Serializable
-data class TempStats(
-    val cpu: Double? = null,
-    val gpu: Double? = null,
-)
-
-@Serializable
-data class HistoryResponse(val points: List<HistoryPoint> = emptyList())
-
-@Serializable
-data class HistoryPoint(val ts: Long = 0, val value: Double = 0.0)
-
-@Serializable
-data class EventsResponse(val events: List<EventItem> = emptyList())
-
-@Serializable
-data class EventItem(val ts: Long = 0, val msg: String = "", val level: String = "")
-
-@Serializable
-data class StatusResponse(
-    val ok: Boolean? = null,
-    val version: String? = null,
-    val nodes: Int? = null,
-    val users: Int? = null,
+/** Aggregated state for one node, refreshed periodically. */
+data class NodeView(
+    val config: NodeConfig,
+    val system: NodeSystem? = null,
+    val disks: List<DiskInfo> = emptyList(),
+    val processes: List<ProcInfo> = emptyList(),
+    val online: Boolean = false,
+    val error: String? = null,
 )

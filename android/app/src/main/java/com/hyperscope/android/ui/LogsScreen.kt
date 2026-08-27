@@ -5,46 +5,34 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.hyperscope.android.data.EventItem
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
+// Shows the currently selected node's live system data (node-side "logs" view
+// in this local-panel model = the live snapshot).
 @Composable
 fun LogsScreen(vm: AppViewModel) {
-    val events by vm.events.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { vm.loadEvents() }
+    val nodes by vm.nodes.collectAsStateWithLifecycle()
+    val selected by vm.selected.collectAsStateWithLifecycle()
+    val active = nodes.firstOrNull { it.config.name == selected }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("事件记录", style = MaterialTheme.typography.titleMedium)
-        if (events.events.isEmpty()) {
-            Text("暂无记录", Modifier.padding(top = 24.dp),
+        Text("节点状态", style = MaterialTheme.typography.titleMedium)
+        if (active == null) {
+            Text("请先在设置页添加节点", Modifier.padding(top = 24.dp),
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-        } else {
-            LazyColumn(Modifier.fillMaxWidth().padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(events.events) { e -> EventRow(e) }
-            }
+            return@Column
         }
-    }
-}
-
-@Composable
-private fun EventRow(e: EventItem) {
-    val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
-    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Text(fmt.format(Date(e.ts * 1000)), style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-        Text(e.msg, style = MaterialTheme.typography.bodySmall)
+        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("节点：${active.config.name}", style = MaterialTheme.typography.bodyMedium)
+            Text("地址：${active.config.addr}:${active.config.port}")
+            Text("状态：${if (active.online) "在线" else "离线"}",
+                color = if (active.online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+            active.error?.let { Text("错误：$it", color = MaterialTheme.colorScheme.error) }
+        }
     }
 }

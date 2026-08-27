@@ -3,116 +3,97 @@ package com.hyperscope.android.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.hyperscope.android.data.ApiClient
-import com.hyperscope.android.data.EventsResponse
-import com.hyperscope.android.data.HistoryResponse
-import com.hyperscope.android.data.NodesResponse
+import com.hyperscope.android.data.NodeClient
+import com.hyperscope.android.data.NodeConfig
+import com.hyperscope.android.data.NodeView
 import com.hyperscope.android.data.SettingsStore
-import com.hyperscope.android.data.SystemResponse
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-
-data class UiState(
-    val baseUrl: String = "http://192.168.1.7:8088",
-    val token: String = "",
-    val user: String = "",
-    val theme: String = "auto",
-    val loggedIn: Boolean = false,
-    val loading: Boolean = false,
-    val error: String? = null,
-)
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val store = SettingsStore(app)
-    private val api = ApiClient()
+    private val client = NodeClient()
 
-    private val _ui = MutableStateFlow(UiState())
-    val ui: StateFlow<UiState> = _ui.asStateFlow()
+    private val _nodes = MutableStateFlow<List<NodeView>>(emptyList())
+    val nodes: StateFlow<List<NodeView>> = _nodes.asStateFlow()
 
-    private val _nodes = MutableStateFlow(NodesResponse())
-    val nodes: StateFlow<NodesResponse> = _nodes.asStateFlow()
+    private val _selected = MutableStateFlow<String?>(null)
+    val selected: StateFlow<String?> = _selected.asStateFlow()
 
-    private val _system = MutableStateFlow(SystemResponse())
-    val system: StateFlow<SystemResponse> = _system.asStateFlow()
+    private val _theme = MutableStateFlow("auto")
+    val theme: StateFlow<String> = _theme.asStateFlow()
 
-    private val _history = MutableStateFlow(HistoryResponse())
-    val history: StateFlow<HistoryResponse> = _history.asStateFlow()
-
-    private val _events = MutableStateFlow(EventsResponse())
-    val events: StateFlow<EventsResponse> = _events.asStateFlow()
+    private var refreshJob: Job? = null
 
     init {
         viewModelScope.launch {
-            val s = _ui.value.copy(
-                baseUrl = store.baseUrl.first(),
-                token = store.token.first(),
-                user = store.user.first(),
-                theme = store.theme.first(),
-                loggedIn = store.token.first().isNotEmpty(),
-            )
-            _ui.value = s
+            val list = store.nodes.first()
+            _nodes.value = list.map { NodeView(config = it) }
+            _selected.value = list.firstOrNull()?.name
+            _theme.value = store.theme.first()
+            if (list.isNotEmpty()) startPolling()
         }
     }
 
-    fun setBaseUrl(v: String) { _ui.value = _ui.value.copy(baseUrl = v) }
+    private fun startPolling() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
+                refreshAll()
+                delay(5000)
+            }
+        }
+    }
+
+    private suspend fun refreshAll() {
+        val views = _nodes.value
+        val updated = views.map { view ->
+            try {
+                val sys = client.system(view.config)
+                val disks = client.disks(view.config).disks
+                val procs = client.processes(view.config).processes
+                view.copy(system = sys, disks = disks, processes = procs, online = true, error = null)
+            } catch (e: Exception) {
+                view.copy(online = false, error = e.message)
+            }
+        }
+        _nodes.value = updated
+    }
+
+    fun addNode(name: String, addr: String, port: Int, key: String) {
+        viewModelScope.launch {
+            val cfg = NodeConfig(name = name.ifBlank { addr }, addr = addr, port = port, key = key)
+            val list = _nodes.value.map { it.config } + cfg
+            store.saveNodes(list)
+            _nodes.value = _nodes.value + NodeView(config = cfg)
+            if (_selected.value == null) _selected.value = cfg.name
+            startPolling()
+        }
+    }
+
+    fun removeNode(name: String) {
+        viewModelScope.launch {
+            val list = _nodes.value.map { it.config }.filter { it.name != name }
+            store.saveNodes(list)
+            _nodes.value = _nodes.value.filter { it.config.name != name }
+            if (_selected.value == name) {
+                _selected.value = _nodes.value.firstOrNull()?.config?.name
+            }
+        }
+    }
+
+    fun selectNode(name: String) { _selected.value = name }
+
     fun setTheme(v: String) {
-        _ui.value = _ui.value.copy(theme = v)
+        _theme.value = v
         viewModelScope.launch { store.setTheme(v) }
     }
 
-    fun login(user: String, pass: String) {
-        viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null)
-            try {
-                val token = api.login(_ui.value.baseUrl, user, pass)
-                store.setToken(token); store.setUser(user)
-                _ui.value = _ui.value.copy(token = token, user = user, loggedIn = true, loading = false)
-                loadNodes()
-            } catch (e: Exception) {
-                _ui.value = _ui.value.copy(loading = false, error = e.message ?: "Login failed")
-            }
-        }
-    }
-
-    fun logout() {
-        viewModelScope.launch { store.logout() }
-        _ui.value = _ui.value.copy(token = "", user = "", loggedIn = false)
-    }
-
-    fun loadNodes() {
-        viewModelScope.launch {
-            try {
-                _nodes.value = api.fetchNodes(_ui.value.baseUrl, _ui.value.token)
-                if (_nodes.value.nodes.isNotEmpty()) {
-                    loadSystem(_nodes.value.nodes.first().id)
-                }
-            } catch (e: Exception) {
-                _ui.value = _ui.value.copy(error = e.message)
-            }
-        }
-    }
-
-    fun loadSystem(nodeId: String) {
-        viewModelScope.launch {
-            try { _system.value = api.fetchSystem(_ui.value.baseUrl, _ui.value.token, nodeId) }
-            catch (_: Exception) {}
-        }
-    }
-
-    fun loadHistory(nodeId: String, metric: String = "cpu", range: String = "1h") {
-        viewModelScope.launch {
-            try { _history.value = api.fetchHistory(_ui.value.baseUrl, _ui.value.token, nodeId, metric, range) }
-            catch (_: Exception) {}
-        }
-    }
-
-    fun loadEvents() {
-        viewModelScope.launch {
-            try { _events.value = api.fetchEvents(_ui.value.baseUrl, _ui.value.token) }
-            catch (_: Exception) {}
-        }
-    }
+    fun manualRefresh() { viewModelScope.launch { refreshAll() } }
 }
