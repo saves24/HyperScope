@@ -26,8 +26,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _selected = MutableStateFlow<String?>(null)
     val selected: StateFlow<String?> = _selected.asStateFlow()
 
+    private val _sort = MutableStateFlow("default")
+    val sort: StateFlow<String> = _sort.asStateFlow()
+
     private val _theme = MutableStateFlow("auto")
     val theme: StateFlow<String> = _theme.asStateFlow()
+
+    private val _authState = MutableStateFlow(AuthState.Loading)
+    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    private val _authError = MutableStateFlow<String?>(null)
+    val authError: StateFlow<String?> = _authError.asStateFlow()
 
     private var refreshJob: Job? = null
 
@@ -37,8 +46,47 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _nodes.value = list.map { NodeView(config = it) }
             _selected.value = list.firstOrNull()?.name
             _theme.value = store.theme.first()
+            _authState.value = if (store.hasAuth.first()) AuthState.Login else AuthState.Setup
             if (list.isNotEmpty()) startPolling()
         }
+    }
+
+    fun setup(userName: String, password: String, confirm: String) {
+        viewModelScope.launch {
+            if (userName.isBlank() || password.isBlank()) {
+                _authError.value = "用户名和密码不能为空"
+                _authState.value = AuthState.Error
+                return@launch
+            }
+            if (password != confirm) {
+                _authError.value = "两次输入的密码不一致"
+                _authState.value = AuthState.Error
+                return@launch
+            }
+            store.setupCredentials(userName, password)
+            _authState.value = AuthState.Authed
+        }
+    }
+
+    fun login(userName: String, password: String) {
+        viewModelScope.launch {
+            val ok = store.verifyLogin(userName, password)
+            if (ok) {
+                _authState.value = AuthState.Authed
+                _authError.value = null
+            } else {
+                _authError.value = "用户名或密码错误"
+                _authState.value = AuthState.Error
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch { store.setupCredentials("", "") }
+        _authState.value = AuthState.Setup
+        _authError.value = null
+        _nodes.value = emptyList()
+        _selected.value = null
     }
 
     private fun startPolling() {
@@ -90,6 +138,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectNode(name: String) { _selected.value = name }
 
+    fun setSort(s: String) { _sort.value = s }
+
+    fun sortedViews(): List<NodeView> {
+        val views = _nodes.value
+        return when (_sort.value) {
+            "cpu" -> views.sortedByDescending { it.system?.cpu ?: 0.0 }
+            "mem" -> views.sortedByDescending { it.system?.mem_percent ?: 0.0 }
+            else -> views
+        }
+    }
+
     fun setTheme(v: String) {
         _theme.value = v
         viewModelScope.launch { store.setTheme(v) }
@@ -97,3 +156,5 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun manualRefresh() { viewModelScope.launch { refreshAll() } }
 }
+
+enum class AuthState { Loading, Setup, Login, Authed, Error }

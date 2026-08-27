@@ -22,6 +22,14 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+    signingConfigs {
+        create("debug") {
+            storeFile = file("../keystore/debug.p12")
+            storePassword = "android"
+            keyAlias = "hyperscope"
+            keyPassword = "android"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
