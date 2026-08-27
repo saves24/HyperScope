@@ -1,6 +1,7 @@
 package com.hyperscope.android.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -18,7 +19,7 @@ class SettingsStore(private val context: Context) {
     private val keyTheme = stringPreferencesKey("theme")
     private val keyUser = stringPreferencesKey("user")
     private val keyPassHash = stringPreferencesKey("pass_hash")
-    private val keyLoggedIn = stringPreferencesKey("logged_in")
+    private val keyLoggedIn = booleanPreferencesKey("logged_in")
     private val keyLang = stringPreferencesKey("lang")
     private val json = Json { ignoreUnknownKeys = true }
     private val nodesSerializer = ListSerializer(NodeConfig.serializer())
