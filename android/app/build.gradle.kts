@@ -23,7 +23,7 @@ android {
         }
     }
     signingConfigs {
-        create("debug") {
+        getByName("debug") {
             storeFile = file("../keystore/debug.p12")
             storePassword = "android"
             keyAlias = "hyperscope"
