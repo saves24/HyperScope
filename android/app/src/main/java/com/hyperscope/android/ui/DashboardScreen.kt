@@ -1,7 +1,6 @@
 package com.hyperscope.android.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,8 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hyperscope.android.R
 import com.hyperscope.android.data.NodeView
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -59,12 +59,11 @@ fun DashboardScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize()) {
         GreetingBar()
         NodeSectionHeader(sort = sort, onSort = vm::setSort, onAddNode = { showAdd = true })
-        // Node cards (top, like the web panel's node grid)
         NodeBar(nodes = sorted, selected = active?.config?.name, onSelect = vm::selectNode)
 
         when {
             sorted.isEmpty() -> EmptyState()
-            active == null -> Text("节点不存在", Modifier.padding(24.dp))
+            active == null -> Text(stringResource(R.string.no_nodes), Modifier.padding(24.dp))
             !active.online -> OfflineState(active)
             else -> NodeDashboard(active)
         }
@@ -101,26 +100,28 @@ private fun GreetingBar() {
 private fun NodeSectionHeader(sort: String, onSort: (String) -> Unit, onAddNode: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text("Nodes", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.nodes), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.weight(1f))
-        TextButton(onClick = onAddNode) { Icon(Icons.Filled.Add, null); Spacer(Modifier.width(4.dp)); Text("Add Node") }
+        TextButton(onClick = onAddNode) {
+            Icon(Icons.Filled.Add, null); Spacer(Modifier.width(4.dp)); Text(stringResource(R.string.add_node))
+        }
     }
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SortChip("default", "Default", sort, onSort)
-        SortChip("cpu", "CPU", sort, onSort)
-        SortChip("mem", "Memory", sort, onSort)
+        SortChip("default", R.string.sort_default, sort, onSort)
+        SortChip("cpu", R.string.sort_cpu, sort, onSort)
+        SortChip("mem", R.string.sort_mem, sort, onSort)
     }
 }
 
 @Composable
-private fun SortChip(value: String, label: String, current: String, onSelect: (String) -> Unit) {
+private fun SortChip(value: String, labelRes: Int, current: String, onSelect: (String) -> Unit) {
     val active = current == value
     Card(shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface),
         onClick = { onSelect(value) }) {
-        Text(label, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        Text(stringResource(labelRes), modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelMedium,
             color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
     }
@@ -154,10 +155,9 @@ private fun NodeBar(nodes: List<NodeView>, selected: String?, onSelect: (String)
 private fun EmptyState() {
     Column(Modifier.fillMaxSize().padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(80.dp))
-        Text("还没有节点", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.no_nodes), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        Text("点上方「Add Node」添加一台运行 hyper-node 的机器",
-            style = MaterialTheme.typography.bodySmall,
+        Text(stringResource(R.string.no_nodes_hint), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
     }
 }
@@ -166,9 +166,9 @@ private fun EmptyState() {
 private fun OfflineState(view: NodeView) {
     Column(Modifier.fillMaxSize().padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(80.dp))
-        Text("无法连接 ${view.config.name}", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.node_offline) + " ${view.config.name}", style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        Text(view.error ?: "检查地址/端口/API Key", style = MaterialTheme.typography.bodySmall,
+        Text(view.error ?: stringResource(R.string.node_offline_hint), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
     }
 }
@@ -183,43 +183,43 @@ private fun NodeDashboard(view: NodeView) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item(key = "system") {
-            GridCard("系统", Modifier.fillMaxWidth()) {
-                KV("主机", sys?.node_name ?: "--")
-                KV("版本", sys?.version ?: "--")
-                KV("内核", sys?.kernel ?: "--")
-                KV("负载", sys?.loadavg ?: "--")
-                KV("运行", sys?.uptime ?: "--")
-                KV("进程", sys?.processes?.toString() ?: "--")
+            GridCard(stringResource(R.string.system), Modifier.fillMaxWidth()) {
+                KV(stringResource(R.string.host), sys?.node_name ?: "--")
+                KV(stringResource(R.string.version), sys?.version ?: "--")
+                KV(stringResource(R.string.kernel), sys?.kernel ?: "--")
+                KV(stringResource(R.string.load), sys?.loadavg ?: "--")
+                KV(stringResource(R.string.uptime), sys?.uptime ?: "--")
+                KV(stringResource(R.string.procs), sys?.processes?.toString() ?: "--")
             }
         }
         item(key = "cpu") {
             GridCard("CPU", Modifier.fillMaxWidth()) {
-                KV("使用率", "${sys?.cpu ?: 0.0}%")
-                KV("核心", sys?.cpu_cores?.toString() ?: "--")
-                KV("频率", sys?.cpu_mhz ?: "--")
+                KV(stringResource(R.string.usage), "${sys?.cpu ?: 0.0}%")
+                KV(stringResource(R.string.cores), sys?.cpu_cores?.toString() ?: "--")
+                KV(stringResource(R.string.freq), sys?.cpu_mhz ?: "--")
             }
         }
         item(key = "mem") {
-            GridCard("内存", Modifier.fillMaxWidth()) {
-                KV("已用/总", "${sys?.mem_used ?: "--"} / ${sys?.mem_total ?: "--"}")
-                KV("使用率", "${sys?.mem_percent ?: 0.0}%")
+            GridCard(stringResource(R.string.mem), Modifier.fillMaxWidth()) {
+                KV(stringResource(R.string.used_total), "${sys?.mem_used ?: "--"} / ${sys?.mem_total ?: "--"}")
+                KV(stringResource(R.string.usage), "${sys?.mem_percent ?: 0.0}%")
             }
         }
         item(key = "disk") {
-            GridCard("磁盘", Modifier.fillMaxWidth()) {
-                KV("已用/总", "${sys?.disk_used ?: "--"} / ${sys?.disk_total ?: "--"}")
-                KV("使用率", "${sys?.disk_percent ?: 0.0}%")
+            GridCard(stringResource(R.string.disk), Modifier.fillMaxWidth()) {
+                KV(stringResource(R.string.used_total), "${sys?.disk_used ?: "--"} / ${sys?.disk_total ?: "--"}")
+                KV(stringResource(R.string.usage), "${sys?.disk_percent ?: 0.0}%")
                 view.disks.take(2).forEach { KV("  ${it.name}", "${it.used} / ${it.total}") }
             }
         }
         item(key = "temp") {
-            GridCard("温度", Modifier.fillMaxWidth()) {
+            GridCard(stringResource(R.string.temp), Modifier.fillMaxWidth()) {
                 KV("CPU", sys?.cpu_temp ?: "N/A")
                 KV("GPU", sys?.gpu_temp ?: "N/A")
             }
         }
         item(key = "procs") {
-            GridCard("进程 TOP", Modifier.fillMaxWidth()) {
+            GridCard(stringResource(R.string.top_procs), Modifier.fillMaxWidth()) {
                 view.processes.take(5).forEach { KV(" ${it.pid}", "${it.name} · ${it.cpu}%") }
             }
         }
@@ -258,21 +258,20 @@ private fun AddNodeDialog(vm: AppViewModel, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Node") },
+        title = { Text(stringResource(R.string.add_node)) },
         text = {
             Column {
                 OutlinedTextField(value = name, onValueChange = { name = it },
-                    label = { Text("名称（可选）") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.node_name_opt)) }, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = addr, onValueChange = { addr = it },
-                    label = { Text("节点地址，如 192.168.1.100") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.node_addr)) }, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = port, onValueChange = { port = it },
-                    label = { Text("端口（默认 5000）") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.node_port)) }, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = key, onValueChange = { key = it },
-                    label = { Text("API Key（节点上 hyper-node key show 获取）") },
-                    modifier = Modifier.fillMaxWidth())
+                    label = { Text(stringResource(R.string.node_key)) }, modifier = Modifier.fillMaxWidth())
             }
         },
         confirmButton = {
@@ -281,8 +280,8 @@ private fun AddNodeDialog(vm: AppViewModel, onDismiss: () -> Unit) {
                     vm.addNode(name, addr, port.toIntOrNull() ?: 5000, key.trim())
                     onDismiss()
                 }
-            }) { Text("添加") }
+            }) { Text(stringResource(R.string.add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

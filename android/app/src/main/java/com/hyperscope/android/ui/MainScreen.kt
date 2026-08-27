@@ -20,13 +20,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import com.hyperscope.android.R
 
 // Nodes are selected from the top bar of the Dashboard, not the bottom nav.
-enum class Tab(val label: String, val icon: ImageVector) {
-    Dashboard("概览", Icons.Filled.Dashboard),
-    History("历史", Icons.Filled.List),
-    Logs("日志", Icons.Filled.Info),
-    Settings("设置", Icons.Filled.Settings),
+enum class Tab(val labelRes: Int, val icon: ImageVector) {
+    Dashboard(R.string.tab_dashboard, Icons.Filled.Dashboard),
+    History(R.string.tab_history, Icons.Filled.List),
+    Logs(R.string.tab_logs, Icons.Filled.Info),
+    Settings(R.string.tab_settings, Icons.Filled.Settings),
 }
 
 @Composable
@@ -40,8 +42,8 @@ fun MainScreen(vm: AppViewModel) {
                     NavigationBarItem(
                         selected = tab == t,
                         onClick = { tab = t },
-                        icon = { Icon(t.icon, contentDescription = t.label) },
-                        label = { Text(t.label) },
+                        icon = { Icon(t.icon, contentDescription = null) },
+                        label = { Text(stringResource(t.labelRes)) },
                     )
                 }
             }

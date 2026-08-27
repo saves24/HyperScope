@@ -1,0 +1,80 @@
+<resources>
+    <string name="app_name">HyperScope</string>
+
+    <!-- Auth -->
+    <string name="auth_setup_title">设置登录凭证</string>
+    <string name="auth_login_title">登录</string>
+    <string name="auth_username">用户名</string>
+    <string name="auth_password">密码</string>
+    <string name="auth_confirm">确认密码</string>
+    <string name="auth_setup_action">设置并进入</string>
+    <string name="auth_login_action">登录</string>
+    <string name="auth_language">语言</string>
+    <string name="auth_system_lang">跟随系统</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="auth_err_empty">用户名和密码不能为空</string>
+    <string name="auth_err_mismatch">两次输入的密码不一致</string>
+    <string name="auth_err_invalid">用户名或密码错误</string>
+
+    <!-- Bottom nav -->
+    <string name="tab_dashboard">概览</string>
+    <string name="tab_history">历史</string>
+    <string name="tab_logs">日志</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- Dashboard -->
+    <string name="nodes">节点</string>
+    <string name="add_node">添加节点</string>
+    <string name="sort_default">默认</string>
+    <string name="sort_cpu">CPU</string>
+    <string name="sort_mem">内存</string>
+    <string name="no_nodes">还没有节点</string>
+    <string name="no_nodes_hint">点上方「添加节点」添加一台运行 hyper-node 的机器</string>
+    <string name="node_offline">无法连接</string>
+    <string name="node_offline_hint">检查地址 / 端口 / API Key</string>
+    <string name="system">系统</string>
+    <string name="host">主机</string>
+    <string name="version">版本</string>
+    <string name="kernel">内核</string>
+    <string name="load">负载</string>
+    <string name="uptime">运行</string>
+    <string name="procs">进程</string>
+    <string name="usage">使用率</string>
+    <string name="cores">核心</string>
+    <string name="freq">频率</string>
+    <string name="used_total">已用 / 总</string>
+    <string name="temp">温度</string>
+    <string name="mem">内存</string>
+    <string name="disk">磁盘</string>
+    <string name="top_procs">进程 TOP</string>
+    <string name="node_name_opt">名称（可选）</string>
+    <string name="node_addr">节点地址，如 192.168.1.100</string>
+    <string name="node_port">端口（默认 5000）</string>
+    <string name="node_key">API Key（节点上 hyper-node key show 获取）</string>
+    <string name="add">添加</string>
+    <string name="cancel">取消</string>
+
+    <!-- History / Logs -->
+    <string name="history_data">历史数据</string>
+    <string name="history_empty">暂无数据</string>
+    <string name="node_status">节点状态</string>
+    <string name="no_node_add_first">请先在设置页添加节点</string>
+    <string name="status">状态</string>
+    <string name="online">在线</string>
+    <string name="offline">离线</string>
+    <string name="error">错误</string>
+    <string name="address">地址</string>
+
+    <!-- Settings -->
+    <string name="settings">设置</string>
+    <string name="added_nodes">已添加节点</string>
+    <string name="no_nodes_short">暂无节点</string>
+    <string name="delete">删除</string>
+    <string name="theme">主题</string>
+    <string name="theme_auto">自动</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+    <string name="language">语言</string>
+    <string name="logout">退出登录</string>
+</resources>

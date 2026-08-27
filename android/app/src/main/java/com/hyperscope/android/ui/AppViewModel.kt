@@ -32,6 +32,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _theme = MutableStateFlow("auto")
     val theme: StateFlow<String> = _theme.asStateFlow()
 
+    private val _lang = MutableStateFlow("system")
+    val lang: StateFlow<String> = _lang.asStateFlow()
+
     private val _authState = MutableStateFlow(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
@@ -46,24 +49,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _nodes.value = list.map { NodeView(config = it) }
             _selected.value = list.firstOrNull()?.name
             _theme.value = store.theme.first()
-            _authState.value = if (store.hasAuth.first()) AuthState.Login else AuthState.Setup
-            if (list.isNotEmpty()) startPolling()
+            _lang.value = store.lang.first()
+            val authed = store.loggedIn.first()
+            _authState.value = if (authed) AuthState.Authed
+            else if (store.hasAuth.first()) AuthState.Login
+            else AuthState.Setup
+            if (authed && list.isNotEmpty()) startPolling()
         }
     }
 
     fun setup(userName: String, password: String, confirm: String) {
         viewModelScope.launch {
             if (userName.isBlank() || password.isBlank()) {
-                _authError.value = "用户名和密码不能为空"
+                _authError.value = "Username and password cannot be empty"
                 _authState.value = AuthState.Error
                 return@launch
             }
             if (password != confirm) {
-                _authError.value = "两次输入的密码不一致"
+                _authError.value = "Passwords do not match"
                 _authState.value = AuthState.Error
                 return@launch
             }
             store.setupCredentials(userName, password)
+            store.setLoggedIn(true)
             _authState.value = AuthState.Authed
         }
     }
@@ -72,18 +80,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val ok = store.verifyLogin(userName, password)
             if (ok) {
+                store.setLoggedIn(true)
                 _authState.value = AuthState.Authed
                 _authError.value = null
             } else {
-                _authError.value = "用户名或密码错误"
+                _authError.value = "Wrong username or password"
                 _authState.value = AuthState.Error
             }
         }
     }
 
     fun logout() {
-        viewModelScope.launch { store.setupCredentials("", "") }
-        _authState.value = AuthState.Setup
+        viewModelScope.launch { store.setLoggedIn(false) }
+        _authState.value = AuthState.Login
         _authError.value = null
         _nodes.value = emptyList()
         _selected.value = null
@@ -152,6 +161,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setTheme(v: String) {
         _theme.value = v
         viewModelScope.launch { store.setTheme(v) }
+    }
+
+    fun setLang(v: String) {
+        _lang.value = v
+        viewModelScope.launch { store.setLang(v) }
     }
 
     fun manualRefresh() { viewModelScope.launch { refreshAll() } }

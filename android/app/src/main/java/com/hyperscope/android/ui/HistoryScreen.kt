@@ -10,15 +10,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.hyperscope.android.R
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// History is fetched directly from the selected node (hyper-node has no
-// persisted history endpoint in this version, so this shows the node's
-// reported snapshot fields with timestamps as a placeholder).
+// Snapshot view for the selected node (hyper-node has no persisted history
+// endpoint in this version, so this shows live snapshot fields).
 @Composable
 fun HistoryScreen(vm: AppViewModel) {
     val nodes by vm.nodes.collectAsStateWithLifecycle()
@@ -26,21 +27,21 @@ fun HistoryScreen(vm: AppViewModel) {
     val active = nodes.firstOrNull { it.config.name == selected }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("历史数据", style = MaterialTheme.typography.titleMedium)
-        if (active?.system == null) {
-            Text("暂无数据", Modifier.padding(top = 24.dp),
+        Text(stringResource(R.string.history_data), style = MaterialTheme.typography.titleMedium)
+        val sys = active?.system
+        if (sys == null) {
+            Text(stringResource(R.string.history_empty), Modifier.padding(top = 24.dp),
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-            return@Column
-        }
-        val sys = active.system
-        val now = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-        Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("当前快照（${active.config.name} @ $now）", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-            Text("CPU: ${sys.cpu}%  ·  内存: ${sys.mem_used} / ${sys.mem_total}  ·  ${sys.mem_percent}%")
-            Text("磁盘: ${sys.disk_used} / ${sys.disk_total}  ·  ${sys.disk_percent}%")
-            Text("温度: CPU ${sys.cpu_temp}  GPU ${sys.gpu_temp}")
-            Text("负载: ${sys.loadavg}  ·  运行: ${sys.uptime}")
+        } else {
+            val now = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+            Column(Modifier.fillMaxWidth().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("${active.config.name} @ $now", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                Text("CPU: ${sys.cpu}%  ·  MEM: ${sys.mem_used} / ${sys.mem_total}  ·  ${sys.mem_percent}%")
+                Text("DISK: ${sys.disk_used} / ${sys.disk_total}  ·  ${sys.disk_percent}%")
+                Text("TEMP: CPU ${sys.cpu_temp}  GPU ${sys.gpu_temp}")
+                Text("LOAD: ${sys.loadavg}  ·  UP: ${sys.uptime}")
+            }
         }
     }
 }
