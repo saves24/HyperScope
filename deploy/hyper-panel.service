@@ -1,0 +1,13 @@
+[Unit]
+Description=hyper-panel - system monitoring panel aggregator
+After=network.target
+
+[Service]
+Type=simple
+User=hyperscope
+ExecStart=/usr/local/bin/hyper-panel serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
