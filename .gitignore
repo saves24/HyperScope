@@ -20,6 +20,14 @@ auth.json
 __pycache__/
 *.pyc
 
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.kotlin/
+android/captures/
+
 # OS files
 .DS_Store
 Thumbs.db
