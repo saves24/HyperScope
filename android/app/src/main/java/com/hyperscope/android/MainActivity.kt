@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import com.hyperscope.android.data.LocaleManager
@@ -40,6 +43,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Refresh immediately when returning to foreground (background suspension
+        // can drop poller connections; this re-arms the poll loop and re-fetches).
+        lifecycle.addObserver(LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val vm = ViewModelProvider(this)[AppViewModel::class.java]
+                if (vm.authState.value == AuthState.Authed) vm.manualRefresh()
+            }
+        })
         setContent {
             val vm: AppViewModel = viewModel()
             val auth by vm.authState.collectAsState()

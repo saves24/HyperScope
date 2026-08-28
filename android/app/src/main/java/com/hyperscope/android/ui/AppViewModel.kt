@@ -261,7 +261,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { store.setLang(v) }
     }
 
-    fun manualRefresh() { viewModelScope.launch { refreshAll() } }
+    /** Immediate refresh + ensure the poll loop is running (e.g. on return to foreground). */
+    fun manualRefresh() {
+        viewModelScope.launch {
+            startPolling()
+            refreshAll()
+        }
+    }
 }
 
 enum class AuthState { Loading, Setup, Login, Authed, Error }
