@@ -497,15 +497,24 @@ body.card-trans .modal-mask {
 .nm-del-item input { cursor: pointer; }
 .nm-del-item:hover { background: color-mix(in srgb, var(--btn-bg) 45%, transparent); }
 .nm-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 100%;
     font-size: 13px;
-    padding: 8px;
+    padding: 10px;
     border: 1px dashed var(--border);
     border-radius: 10px;
-    color: var(--text-muted);
-    background: transparent;
+    color: var(--text);
+    background: color-mix(in srgb, var(--btn-bg) 20%, transparent);
     cursor: pointer;
+    transition: background .2s;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
+.nm-file:hover { background: color-mix(in srgb, var(--btn-bg) 40%, transparent); }
+.nm-file input[type="file"] { display: none; }
 .nm-divider {
     height: 1px;
     margin: 12px 0;

@@ -40,18 +40,20 @@ object HsxCodec {
 
     /**
      * Decrypts an .hsxc file with the given passphrase.
+     * Layout: "HSX1"(4) + salt(16) + iv(12) + ciphertext + authTag(16).
      * @throws IllegalArgumentException on bad magic, wrong passphrase or corruption.
      */
     fun decrypt(data: ByteArray, passphrase: String): HsxPayload {
         if (!isHsx(data)) throw IllegalArgumentException("Not a valid .hsxc file")
         val salt = data.copyOfRange(4, 20)
         val iv = data.copyOfRange(20, 32)
-        val ct = data.copyOfRange(32, data.size)
+        // Java AES-GCM expects the 16-byte auth tag appended to the ciphertext.
+        val ctFull = data.copyOfRange(32, data.size)
         val key = deriveKey(passphrase, salt)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
         val pt = try {
-            cipher.doFinal(ct)
+            cipher.doFinal(ctFull)
         } catch (e: Exception) {
             throw IllegalArgumentException("Wrong passphrase or corrupted file")
         }

@@ -502,62 +502,47 @@ function openDockerModal(i) {
 }
 
 // ===== Node config export / import (.hsxc, AES-256-GCM + PBKDF2, done locally) =====
-const HSX_MAGIC = new Uint8Array([0x48, 0x53, 0x58, 0x31]); // "HSX1"
 const HSX_ITER = 200000;
-
-function bufToBase64(buf) {
-  const bytes = new Uint8Array(buf);
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-      s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(s);
+// ==== .hsxc codec backed by node-forge (works over plain HTTP, no WebCrypto needed) ====
+// File layout: "HSX1" + salt(16) + iv(12) + AES-256-GCM ciphertext.
+function hsxDeriveKey(pass, salt) {
+  return forge.pkcs5.pbkdf2(pass, salt, HSX_ITER, 32); // 32 bytes = AES-256
 }
-function base64ToBuf(b64) {
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-async function hsxDeriveKey(pass, salt) {
-  const enc = new TextEncoder().encode(pass);
-  const keyMaterial = await crypto.subtle.importKey("raw", enc, "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt, iterations: HSX_ITER, hash: "SHA-256" },
-      keyMaterial,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt", "decrypt"]
-  );
-}
-async function hsxEncrypt(pass, payloadObj) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await hsxDeriveKey(pass, salt);
-  const pt = new TextEncoder().encode(JSON.stringify(payloadObj));
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, pt);
-  // File layout: HSX1 + salt(16) + iv(12) + ciphertext
-  const out = new Uint8Array(4 + 16 + 12 + ct.byteLength);
-  out.set(HSX_MAGIC, 0);
-  out.set(salt, 4);
-  out.set(iv, 20);
-  out.set(new Uint8Array(ct), 32);
+function hsxEncrypt(pass, payloadObj) {
+  const salt = forge.random.getBytesSync(16);
+  const iv = forge.random.getBytesSync(12);
+  const key = hsxDeriveKey(pass, salt);
+  const cipher = forge.cipher.createCipher("AES-GCM", key);
+  cipher.start({ iv: iv, tagLength: 128 });
+  cipher.update(forge.util.createBuffer(JSON.stringify(payloadObj)));
+  cipher.finish();
+  const tag = cipher.mode.tag.getBytes();
+  // File layout: HSX1(4) + salt(16) + iv(12) + ciphertext + tag(16)
+  const bin = "HSX1" + salt + iv + cipher.output.getBytes() + tag;
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) & 0xff;
   return out;
 }
-async function hsxDecrypt(pass, fileBytes) {
+function hsxDecrypt(pass, fileBytes) {
   const data = new Uint8Array(fileBytes);
-  if (data.length < 32 || data[0] !== 0x48 || data[1] !== 0x53 || data[2] !== 0x58 || data[3] !== 0x31) {
-      throw new Error("Not a valid .hsxc file");
+  const bytes = String.fromCharCode.apply(null, data);
+  if (bytes.length < 32 || bytes.slice(0, 4) !== "HSX1") {
+      throw new Error(t("node-import-invalid"));
   }
-  const salt = data.subarray(4, 20);
-  const iv = data.subarray(20, 32);
-  const ct = data.subarray(32);
-  const key = await hsxDeriveKey(pass, salt);
+  const salt = bytes.slice(4, 20);
+  const iv = bytes.slice(20, 32);
+  const ct = bytes.slice(32, bytes.length - 16);
+  const tag = bytes.slice(bytes.length - 16);
+  const key = hsxDeriveKey(pass, salt);
+  const decipher = forge.cipher.createDecipher("AES-GCM", key);
+  decipher.start({ iv: iv, tagLength: 128, tag: forge.util.createBuffer(tag) });
+  decipher.update(forge.util.createBuffer(ct));
   try {
-      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
-      return JSON.parse(new TextDecoder().decode(pt));
+      const ok = decipher.finish();
+      if (!ok) throw new Error(t("node-import-badpass"));
+      return JSON.parse(decipher.output.toString());
   } catch (e) {
-      throw new Error("Wrong passphrase or corrupted file");
+      throw new Error(t("node-import-badpass"));
   }
 }
 
@@ -570,23 +555,23 @@ function exportNodes() {
           const list = d.nodes || [];
           if (!list.length) { showToast(t("node-export-empty")); return; }
           const payload = { nodes: list.map(n => ({ name: n.name, addr: n.addr || n.address, port: n.port, key: n.key, tls: !!n.tls })) };
-          return hsxEncrypt(pass, payload).then(out => {
-              const blob = new Blob([out], { type: "application/octet-stream" });
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "hyper-nodes-" + new Date().toISOString().slice(0,10) + ".hsxc";
-              a.click();
-              URL.revokeObjectURL(a.href);
-              showToast(t("node-export-ok"));
-              document.getElementById("exportPass").value = "";
-          });
+          const out = hsxEncrypt(pass, payload);
+          const blob = new Blob([out], { type: "application/octet-stream" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "hyper-nodes-" + new Date().toISOString().slice(0,10) + ".hsxc";
+          a.click();
+          URL.revokeObjectURL(a.href);
+          showToast(t("node-export-ok"));
+          document.getElementById("exportPass").value = "";
       })
       .catch(() => showToast(t("op-err")));
 }
 
 function onImportFileSelected(input) {
-  // store file handle for later; no read yet
   input._file = input.files && input.files[0];
+  const label = document.querySelector("label.nm-file span");
+  if (label && input._file) label.textContent = input._file.name;
 }
 
 function importFromFile() {
@@ -598,7 +583,7 @@ function importFromFile() {
   const reader = new FileReader();
   reader.onload = async () => {
       try {
-          const payload = await hsxDecrypt(pass, reader.result);
+          const payload = hsxDecrypt(pass, reader.result);
           const nodes = payload.nodes || [];
           if (!nodes.length) { showToast(t("node-import-empty")); return; }
           const results = { ok: 0, fail: 0 };

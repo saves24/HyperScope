@@ -402,8 +402,10 @@
 
         <!-- batch add + local import (merged into one pane) -->
         <div class="nm-pane" id="nmBatch" style="display:none;">
-            <small class="add-hint" data-i18n="node-import-hint">从 .hsxc 配置文件本地导入（解密后逐条添加）</small>
-            <input type="file" id="importFile" accept=".hsxc" class="nm-file" onchange="onImportFileSelected(this)">
+            <label class="nm-file" for="importFile">
+                <span data-i18n="node-import-choose">选择 .hsxc 文件</span>
+                <input type="file" id="importFile" accept=".hsxc" onchange="onImportFileSelected(this)">
+            </label>
             <label class="add-field" style="margin-top:8px;"><span data-i18n="node-import-pass">口令</span>
                 <input class="modal-search" id="importPass" type="password" placeholder="口令">
             </label>
@@ -531,13 +533,14 @@
 
 <div class="toast" id="toast">已复制</div>
 
-<script src="/static/utils.js?v=20260828hd"></script>
-        <script src="/static/api.js?v=20260828hd"></script>
-        <script src="/static/nodes.js?v=20260828hd"></script>
-        <script src="/static/dashboard.js?v=20260822a"></script>
-        <script src="/static/history.js?v=20260822a"></script>
-        <script src="/static/logs.js?v=20260828hd"></script>
-        <script src="/static/panel.js?v=20260822a"></script>
+<script src="/static/forge.min.js?v=20260828g1"></script>
+<script src="/static/utils.js?v=20260828g1"></script>
+        <script src="/static/api.js?v=20260828g1"></script>
+        <script src="/static/nodes.js?v=20260828g1"></script>
+        <script src="/static/dashboard.js?v=20260828g1"></script>
+        <script src="/static/history.js?v=20260828g1"></script>
+        <script src="/static/logs.js?v=20260828g1"></script>
+        <script src="/static/panel.js?v=20260828g1"></script>
 
 <!-- Docker modal -->
 <div class="modal-mask" id="dockerModal" onclick="closeModal('dockerModal', event)">

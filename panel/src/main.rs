@@ -367,6 +367,7 @@ async fn cmd_serve(port: u16) -> i32 {
         .route("/static/dashboard.js", get(static_dashboard_handler))
         .route("/static/history.js", get(static_history_handler))
         .route("/static/logs.js", get(static_logs_handler))
+        .route("/static/forge.min.js", get(static_forge_handler))
         .route("/static/panel.js", get(static_js_handler))
         .route("/static/style.css", get(static_css_handler))
         .route("/api/login", post(login_handler))

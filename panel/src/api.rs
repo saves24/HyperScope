@@ -19,6 +19,7 @@ pub(crate) const NODES_JS: &str = include_str!("../static/nodes.js");
 pub(crate) const DASHBOARD_JS: &str = include_str!("../static/dashboard.js");
 pub(crate) const HISTORY_JS: &str = include_str!("../static/history.js");
 pub(crate) const LOGS_JS: &str = include_str!("../static/logs.js");
+pub(crate) const FORGE_JS: &str = include_str!("../static/forge.min.js");
 
 pub(crate) async fn health_handler() -> impl IntoResponse {
     (StatusCode::OK, Json(json!({"status": "ok"})))
@@ -151,6 +152,15 @@ pub(crate) async fn static_nodes_handler() -> impl IntoResponse {
             (axum::http::header::CACHE_CONTROL, "no-store"),
         ],
         NODES_JS,
+    )
+}
+pub(crate) async fn static_forge_handler() -> impl IntoResponse {
+    (
+        [
+            (axum::http::header::CONTENT_TYPE, "application/javascript"),
+            (axum::http::header::CACHE_CONTROL, "no-store"),
+        ],
+        FORGE_JS,
     )
 }
 pub(crate) async fn static_dashboard_handler() -> impl IntoResponse {
