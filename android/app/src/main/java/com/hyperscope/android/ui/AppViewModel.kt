@@ -123,6 +123,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Force-restarts the poll loop and refreshes immediately. Used when returning
+     * to the foreground, where the previous loop may have been killed by the OS
+     * while backgrounded (stale offline state persists until a node is tapped).
+     */
+    fun restartPolling() {
+        refreshJob?.cancel()
+        startPolling()
+        viewModelScope.launch { refreshAll() }
+    }
+
     private suspend fun refreshAll() {
         val views = _nodes.value
         val updated = views.map { view ->
@@ -132,9 +143,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val procs = client.processes(view.config).processes
                 view.copy(system = sys, disks = disks, processes = procs, online = true, error = null)
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // Coroutine was cancelled (e.g. leaving the screen) — not a node
-                // failure. Re-throw so cancellation propagates normally.
-                throw e
+                // A cancelled request (e.g. leaving the screen) must not be shown
+                // as a node failure nor abort the whole batch: keep the node's
+                // previous state so the UI never flips to offline on cancel.
+                view
             } catch (e: Exception) {
                 view.copy(online = false, error = e.message)
             }
@@ -161,8 +173,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val dock = client.docker(view.config).containers
                 dock.filter { !it.running }.forEach { keys.add("docker:${it.name}") }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                // ignore cancellation here; detectNotifications is best-effort
             } catch (_: Exception) {}
 
             val prev = activeAlerts[id] ?: emptyList()

@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         lifecycle.addObserver(LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val vm = ViewModelProvider(this)[AppViewModel::class.java]
-                if (vm.authState.value == AuthState.Authed) vm.manualRefresh()
+                if (vm.authState.value == AuthState.Authed) vm.restartPolling()
             }
         })
         setContent {
