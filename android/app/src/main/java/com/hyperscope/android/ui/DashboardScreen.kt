@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hyperscope.android.R
 import com.hyperscope.android.data.NodeView
 import java.text.SimpleDateFormat
@@ -49,9 +49,12 @@ import java.util.Locale
 
 @Composable
 fun DashboardScreen(vm: AppViewModel) {
-    val nodes by vm.nodes.collectAsStateWithLifecycle()
-    val selected by vm.selected.collectAsStateWithLifecycle()
-    val sort by vm.sort.collectAsStateWithLifecycle()
+    // Use plain collectAsState(): collectAsStateWithLifecycle() pauses collection
+    // while backgrounded and can fail to push the latest value on return to the
+    // foreground (nodes appear offline until something triggers a recomposition).
+    val nodes by vm.nodes.collectAsState()
+    val selected by vm.selected.collectAsState()
+    val sort by vm.sort.collectAsState()
     var showAdd by rememberSaveable { mutableStateOf(false) }
     val sorted = vm.sortedViews()
     val active = sorted.firstOrNull { it.config.name == selected } ?: sorted.firstOrNull()

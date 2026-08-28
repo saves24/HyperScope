@@ -24,6 +24,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hyperscope.android.R
 import com.hyperscope.android.data.HsxCodec
 import kotlinx.coroutines.Dispatchers
@@ -49,9 +49,9 @@ private val themes = listOf(
 
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
-    val nodes by vm.nodes.collectAsStateWithLifecycle()
-    val theme by vm.theme.collectAsStateWithLifecycle()
-    val lang by vm.lang.collectAsStateWithLifecycle()
+    val nodes by vm.nodes.collectAsState()
+    val theme by vm.theme.collectAsState()
+    val lang by vm.lang.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 

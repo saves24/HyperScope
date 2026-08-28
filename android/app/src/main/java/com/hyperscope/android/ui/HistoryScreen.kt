@@ -8,11 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hyperscope.android.R
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -22,8 +22,8 @@ import java.util.Locale
 // endpoint in this version, so this shows live snapshot fields).
 @Composable
 fun HistoryScreen(vm: AppViewModel) {
-    val nodes by vm.nodes.collectAsStateWithLifecycle()
-    val selected by vm.selected.collectAsStateWithLifecycle()
+    val nodes by vm.nodes.collectAsState()
+    val selected by vm.selected.collectAsState()
     val active = nodes.firstOrNull { it.config.name == selected }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {

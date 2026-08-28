@@ -130,6 +130,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun restartPolling() {
         refreshJob?.cancel()
+        refreshJob = null // ensure startPolling() below actually creates a fresh loop
         startPolling()
         viewModelScope.launch { refreshAll() }
     }
