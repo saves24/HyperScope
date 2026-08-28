@@ -112,7 +112,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun startPolling() {
-        refreshJob?.cancel()
+        // Never cancel a running loop to restart it: that cancellation surfaces as
+        // a CancellationException inside refreshAll() and wrongly marks nodes offline.
+        if (refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             while (isActive) {
                 refreshAll()
@@ -129,6 +131,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val disks = client.disks(view.config).disks
                 val procs = client.processes(view.config).processes
                 view.copy(system = sys, disks = disks, processes = procs, online = true, error = null)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Coroutine was cancelled (e.g. leaving the screen) — not a node
+                // failure. Re-throw so cancellation propagates normally.
+                throw e
             } catch (e: Exception) {
                 view.copy(online = false, error = e.message)
             }
@@ -155,6 +161,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val dock = client.docker(view.config).containers
                 dock.filter { !it.running }.forEach { keys.add("docker:${it.name}") }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (_: Exception) {}
 
             val prev = activeAlerts[id] ?: emptyList()
