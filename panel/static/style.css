@@ -445,6 +445,73 @@ body.card-trans .modal-mask {
     overflow-y: auto;
 }
 
+/* Node manager modal (tabs + batch textarea + delete list) */
+.modal-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 25%, transparent);
+}
+.nm-tab {
+    padding: 8px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+.nm-tab.active {
+    color: var(--btn-text);
+    border-bottom-color: var(--btn-text);
+    font-weight: 700;
+}
+.nm-pane { padding: 14px 18px; }
+.nm-textarea {
+    width: 100%;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    margin-top: 6px;
+}
+.nm-del-list {
+    max-height: 40vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.nm-del-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--btn-bg) 20%, transparent);
+    cursor: pointer;
+    font-size: 13px;
+}
+.nm-del-item input { cursor: pointer; }
+.nm-del-item:hover { background: color-mix(in srgb, var(--btn-bg) 45%, transparent); }
+.nm-file {
+    width: 100%;
+    font-size: 13px;
+    padding: 8px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    background: transparent;
+    cursor: pointer;
+}
+.nm-divider {
+    height: 1px;
+    margin: 12px 0;
+    background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+}
+
 /* Process table */
 .proc-table {
     width: 100%;
@@ -992,7 +1059,7 @@ body.card-trans .modal-mask {
 /* Settings panel */
 .settings-panel {
     position: fixed;
-    top: 80px; /* closer to hamburger button without covering it */
+    top: 70px; /* closer to hamburger button without covering it */
     left: 20px; /* aligned with header padding (hamburger left edge) */
     z-index: 300;
     display: none;

@@ -17,7 +17,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="/static/style.css?v=20260820au">
+<link rel="stylesheet" href="/static/style.css?v=20260828hd">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
     <div class="settings-panel" id="settingsPanel">
 
     <div class="settings-group" onclick="toggleSettingsGroup(this)" data-collapsible>
-        <div class="settings-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:6px;"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.39 5.39 0 0 1-4.4 2.26 5.39 0 0 1 0-10.8A9 9 0 0 0 12 3zm0 2a7 7 0 1 1-4.2 12.6 5 5 0 0 0 8.4 0A7 7 0 0 1 12 5z"/></svg><span data-i18n="theme">主题</span><span class="group-caret">▾</span></div>
+        <div class="settings-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:6px;"><path d="M12 3a9 9 0 0 0 0 18a9 9 0 0 0 0-18zm0 2a7 7 0 0 1 0 14a7 7 0 0 1 0-14zM12 7.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9zM5.6 5.6A7 7 0 0 0 8 17.9a9 9 0 0 1-2.4-12.3z"/></svg><span data-i18n="theme">主题</span><span class="group-caret">▾</span></div>
         <div class="settings-options">
             <button class="settings-opt" data-theme="auto" onclick="event.stopPropagation();selectTheme('auto')" data-i18n="theme-auto">自动</button>
             <button class="settings-opt" data-theme="system" onclick="event.stopPropagation();selectTheme('system')" data-i18n="theme-system">系统</button>
@@ -162,9 +162,9 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:4px;"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"/></svg>
             <span data-i18n="node-list">节点列表</span>
         </button>
-        <button class="modal-btn add-node-btn" onclick="openAddNodeModal()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:4px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-            <span data-i18n="add-node">添加节点</span>
+        <button class="modal-btn add-node-btn" onclick="openNodeManager()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:-2px;margin-right:4px;"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 14H4V6h16v12zM8 8h8v2H8V8zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/></svg>
+            <span data-i18n="node-manage">节点管理</span>
         </button>
         <button class="modal-btn sort-btn active" data-sort="default" onclick="setSortMode('default')" data-i18n="sort-default">默认</button>
         <button class="modal-btn sort-btn" data-sort="cpu" onclick="setSortMode('cpu')" data-i18n="sort-cpu">CPU</button>
@@ -367,6 +367,76 @@
     </div>
 </div>
 
+<!-- Node manager modal (add / batch add / batch delete) -->
+<div class="modal-mask" id="nodeManagerModal" onclick="closeModal('nodeManagerModal', event)">
+    <div class="modal" style="max-width:480px;">
+        <div class="modal-head">
+            <span data-i18n="node-manage">节点管理</span>
+            <button class="modal-close" onclick="closeModal('nodeManagerModal')">✕</button>
+        </div>
+        <div class="modal-tabs">
+            <button class="nm-tab active" data-nmtab="add" onclick="nmTab('add')" data-i18n="add-node-title">添加节点</button>
+            <button class="nm-tab" data-nmtab="batch" onclick="nmTab('batch')" data-i18n="node-batch-add">批量添加</button>
+            <button class="nm-tab" data-nmtab="del" onclick="nmTab('del')" data-i18n="node-batch-del">批量删除</button>
+            <button class="nm-tab" data-nmtab="export" onclick="nmTab('export')" data-i18n="node-export">批量导出</button>
+        </div>
+
+        <!-- single add -->
+        <div class="nm-pane" id="nmAdd">
+            <label class="add-field"><span data-i18n="node-addr-label">地址</span>
+                <input class="modal-search" id="addNodeAddr" placeholder="192.168.1.100:5000">
+            </label>
+            <label class="add-field"><span data-i18n="node-key-label">API Key</span>
+                <input class="modal-search" id="addNodeKey" placeholder="API Key" oninput="onAddKeyInput()">
+                <small class="add-hint" data-i18n="add-node-key-hint">在节点运行 hyper-node key show 获取</small>
+            </label>
+            <label class="add-field" style="flex-direction:row;align-items:center;gap:8px;">
+                <input type="checkbox" id="addNodeTls" checked>
+                <span data-i18n="node-tls-label">TLS 加密连接</span>
+                <small class="add-hint" data-i18n="node-tls-hint">HTTPS + 证书指纹校验</small>
+            </label>
+            <div class="add-actions">
+                <button class="modal-btn" onclick="addNode()" data-i18n="add-node-confirm">添加</button>
+            </div>
+        </div>
+
+        <!-- batch add + local import (merged into one pane) -->
+        <div class="nm-pane" id="nmBatch" style="display:none;">
+            <small class="add-hint" data-i18n="node-import-hint">从 .hsxc 配置文件本地导入（解密后逐条添加）</small>
+            <input type="file" id="importFile" accept=".hsxc" class="nm-file" onchange="onImportFileSelected(this)">
+            <label class="add-field" style="margin-top:8px;"><span data-i18n="node-import-pass">口令</span>
+                <input class="modal-search" id="importPass" type="password" placeholder="口令">
+            </label>
+            <div class="nm-divider"></div>
+            <small class="add-hint" data-i18n="node-batch-hint">或手动粘贴：每行一个节点：地址[:端口],key[,名称]</small>
+            <textarea class="modal-search nm-textarea" id="batchNodes" rows="6" placeholder="192.168.1.100:5000,abc123,node1&#10;192.168.1.101,xyz789,node2"></textarea>
+            <div class="add-actions" style="display:flex;gap:8px;justify-content:flex-end;">
+                <button class="modal-btn" onclick="importFromFile()" data-i18n="node-import">本地导入</button>
+                <button class="modal-btn" onclick="batchAddNodes()" data-i18n="node-batch-add">批量添加</button>
+            </div>
+        </div>
+
+        <!-- batch delete -->
+        <div class="nm-pane" id="nmDel" style="display:none;">
+            <div class="nm-del-list" id="nmDelList"><div class="empty-hint" style="padding:20px;text-align:center;color:var(--text-muted)">--</div></div>
+            <div class="add-actions">
+                <button class="modal-btn" style="background:#dc2626;color:#fff;border-color:#dc2626;" onclick="batchDelNodes()" data-i18n="node-batch-del">删除所选</button>
+            </div>
+        </div>
+
+        <!-- batch export (encrypted .hsxc, generated locally in browser) -->
+        <div class="nm-pane" id="nmExport" style="display:none;">
+            <small class="add-hint" data-i18n="node-export-hint">设置一个口令，将当前所有节点加密导出为 .hsxc 文件</small>
+            <label class="add-field" style="margin-top:8px;"><span data-i18n="node-export-pass">口令</span>
+                <input class="modal-search" id="exportPass" type="password" placeholder="设置导出口令">
+            </label>
+            <div class="add-actions">
+                <button class="modal-btn" onclick="exportNodes()" data-i18n="node-export">批量导出</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Node list modal -->
 <div class="modal-mask" id="nodeListModal" onclick="closeModal('nodeListModal', event)">
     <div class="modal" style="max-width:520px;">
@@ -461,12 +531,12 @@
 
 <div class="toast" id="toast">已复制</div>
 
-<script src="/static/utils.js?v=20260822a"></script>
-        <script src="/static/api.js?v=20260822a"></script>
-        <script src="/static/nodes.js?v=20260822a"></script>
+<script src="/static/utils.js?v=20260828hd"></script>
+        <script src="/static/api.js?v=20260828hd"></script>
+        <script src="/static/nodes.js?v=20260828hd"></script>
         <script src="/static/dashboard.js?v=20260822a"></script>
         <script src="/static/history.js?v=20260822a"></script>
-        <script src="/static/logs.js?v=20260822a"></script>
+        <script src="/static/logs.js?v=20260828hd"></script>
         <script src="/static/panel.js?v=20260822a"></script>
 
 <!-- Docker modal -->

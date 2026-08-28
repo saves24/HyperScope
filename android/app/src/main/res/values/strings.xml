@@ -77,6 +77,12 @@
     <string name="added_nodes">Added nodes</string>
     <string name="no_nodes_short">No nodes</string>
     <string name="delete">Delete</string>
+    <string name="confirm">OK</string>
+    <string name="import_config">Import config (.hsxc)</string>
+    <string name="import_config_hint">Import nodes from an encrypted .hsxc file exported from the panel. Decryption happens on your phone.</string>
+    <string name="import_pass_title">Enter passphrase</string>
+    <string name="import_pass">Passphrase</string>
+    <string name="import_not_hsx">Not a valid .hsxc file</string>
     <string name="theme">Theme</string>
     <string name="theme_auto">Auto</string>
     <string name="theme_light">Light</string>

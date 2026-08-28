@@ -161,6 +161,84 @@ function onNodeGridScroll() {
 function openAddNodeModal() {
   document.getElementById("addNodeModal").classList.add("show");
 }
+function openNodeManager() {
+  nmTab("add");
+  document.getElementById("nodeManagerModal").classList.add("show");
+}
+function nmTab(tab) {
+  document.querySelectorAll(".nm-tab").forEach(b => b.classList.toggle("active", b.dataset.nmtab === tab));
+  ["add","batch","del","export"].forEach(t => {
+      const el = document.getElementById("nm" + t[0].toUpperCase() + t.slice(1));
+      if (el) el.style.display = t === tab ? "" : "none";
+  });
+  if (tab === "del") loadNmDelList();
+}
+function batchAddNodes() {
+  const text = (document.getElementById("batchNodes").value || "").trim();
+  if (!text) { showToast(t("node-batch-empty")); return; }
+  const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const results = { ok: 0, fail: 0 };
+  let done = 0;
+  lines.forEach(line => {
+    const parts = line.split(",").map(s => s.trim());
+    let addr = parts[0] || "";
+    let port = 5000;
+    if (addr.includes(":")) { const p = addr.split(":"); addr = p[0]; port = parseInt(p[1]) || 5000; }
+    const key = parts[1] || "";
+    const name = parts[2] || addr;
+    const tls = key.includes("|");
+    if (!addr || !key) { results.fail++; done++; maybeDone(); return; }
+    apiFetch("/api/nodes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, addr, port, key, tls })
+    })
+      .then(r => r.json())
+      .then(d => { d && d.ok ? results.ok++ : results.fail++; })
+      .catch(() => { results.fail++; })
+      .finally(() => { done++; maybeDone(); });
+  });
+  function maybeDone() {
+    if (done >= lines.length) {
+      showToast(t("node-batch-result").replace("{ok}", results.ok).replace("{fail}", results.fail));
+      document.getElementById("batchNodes").value = "";
+      loadNodeList();
+    }
+  }
+}
+function loadNmDelList() {
+  const box = document.getElementById("nmDelList");
+  apiFetch("/api/nodes")
+      .then(r => r.json())
+      .then(d => {
+          const list = d.nodes || [];
+          if (!list.length) { box.innerHTML = "<div class='empty-hint' style='padding:20px;text-align:center;color:var(--text-muted)'>--</div>"; return; }
+          box.innerHTML = list.map((n, i) => `
+              <label class="nm-del-item">
+                  <input type="checkbox" class="nm-del-check" data-idx="${i}" data-id="${escapeHtml(n.id || "")}">
+                  <span class="node-list-dot ${n.status === "online" || n.status === "ok" ? "ok" : "bad"}"></span>
+                  <b>${escapeHtml(displayName(n))}</b>
+                  ${n.node_name && n.node_name !== displayName(n) ? `<span class="node-list-host">${escapeHtml(n.node_name)}</span>` : ""}
+                  <span style="margin-left:auto;color:var(--text-muted);font-size:11px;">v${escapeHtml(n.version || "--")}</span>
+              </label>`).join("");
+      })
+      .catch(() => {});
+}
+function batchDelNodes() {
+  const checks = document.querySelectorAll(".nm-del-check:checked");
+  if (!checks.length) { showToast(t("node-batch-none")); return; }
+  const ids = [...checks].map(c => c.dataset.id);
+  showConfirm(t("node-batch-del-confirm") + " (" + ids.length + ")", "", () => {
+    let done = 0; let removed = 0;
+    ids.forEach(id => {
+      apiFetch("/api/node/id/" + encodeURIComponent(id), { method: "DELETE" })
+        .then(r => r.json())
+        .then(d => { if (d && d.ok) removed++; })
+        .catch(() => {})
+        .finally(() => { done++; if (done >= ids.length) { loadNmDelList(); loadNodeList(); showToast(t("node-removed") + " x" + removed); } });
+    });
+  }, t("confirm-del"));
+}
 function openNodeListModal() {
   apiFetch("/api/nodes")
       .then(r => r.json())
@@ -421,4 +499,131 @@ function openDockerModal(i) {
   activeNode = i;
   openModal("dockerModal");
   loadDocker();
+}
+
+// ===== Node config export / import (.hsxc, AES-256-GCM + PBKDF2, done locally) =====
+const HSX_MAGIC = new Uint8Array([0x48, 0x53, 0x58, 0x31]); // "HSX1"
+const HSX_ITER = 200000;
+
+function bufToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(s);
+}
+function base64ToBuf(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+async function hsxDeriveKey(pass, salt) {
+  const enc = new TextEncoder().encode(pass);
+  const keyMaterial = await crypto.subtle.importKey("raw", enc, "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt, iterations: HSX_ITER, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+  );
+}
+async function hsxEncrypt(pass, payloadObj) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await hsxDeriveKey(pass, salt);
+  const pt = new TextEncoder().encode(JSON.stringify(payloadObj));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, pt);
+  // File layout: HSX1 + salt(16) + iv(12) + ciphertext
+  const out = new Uint8Array(4 + 16 + 12 + ct.byteLength);
+  out.set(HSX_MAGIC, 0);
+  out.set(salt, 4);
+  out.set(iv, 20);
+  out.set(new Uint8Array(ct), 32);
+  return out;
+}
+async function hsxDecrypt(pass, fileBytes) {
+  const data = new Uint8Array(fileBytes);
+  if (data.length < 32 || data[0] !== 0x48 || data[1] !== 0x53 || data[2] !== 0x58 || data[3] !== 0x31) {
+      throw new Error("Not a valid .hsxc file");
+  }
+  const salt = data.subarray(4, 20);
+  const iv = data.subarray(20, 32);
+  const ct = data.subarray(32);
+  const key = await hsxDeriveKey(pass, salt);
+  try {
+      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+      return JSON.parse(new TextDecoder().decode(pt));
+  } catch (e) {
+      throw new Error("Wrong passphrase or corrupted file");
+  }
+}
+
+function exportNodes() {
+  const pass = document.getElementById("exportPass").value;
+  if (!pass) { showToast(t("node-export-pass-need")); return; }
+  apiFetch("/api/nodes")
+      .then(r => r.json())
+      .then(d => {
+          const list = d.nodes || [];
+          if (!list.length) { showToast(t("node-export-empty")); return; }
+          const payload = { nodes: list.map(n => ({ name: n.name, addr: n.addr || n.address, port: n.port, key: n.key, tls: !!n.tls })) };
+          return hsxEncrypt(pass, payload).then(out => {
+              const blob = new Blob([out], { type: "application/octet-stream" });
+              const a = document.createElement("a");
+              a.href = URL.createObjectURL(blob);
+              a.download = "hyper-nodes-" + new Date().toISOString().slice(0,10) + ".hsxc";
+              a.click();
+              URL.revokeObjectURL(a.href);
+              showToast(t("node-export-ok"));
+              document.getElementById("exportPass").value = "";
+          });
+      })
+      .catch(() => showToast(t("op-err")));
+}
+
+function onImportFileSelected(input) {
+  // store file handle for later; no read yet
+  input._file = input.files && input.files[0];
+}
+
+function importFromFile() {
+  const input = document.getElementById("importFile");
+  const file = input && input._file;
+  const pass = document.getElementById("importPass").value;
+  if (!file) { showToast(t("node-import-nofile")); return; }
+  if (!pass) { showToast(t("node-import-pass-need")); return; }
+  const reader = new FileReader();
+  reader.onload = async () => {
+      try {
+          const payload = await hsxDecrypt(pass, reader.result);
+          const nodes = payload.nodes || [];
+          if (!nodes.length) { showToast(t("node-import-empty")); return; }
+          const results = { ok: 0, fail: 0 };
+          let done = 0;
+          nodes.forEach(n => {
+              const key = n.key || "";
+              apiFetch("/api/nodes", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: n.name || n.addr, addr: n.addr, port: n.port || 5000, key, tls: key.includes("|") ? true : !!n.tls })
+              })
+                .then(r => r.json())
+                .then(d => { d && d.ok ? results.ok++ : results.fail++; })
+                .catch(() => { results.fail++; })
+                .finally(() => { done++; if (done >= nodes.length) { finishImport(results); } });
+          });
+          function finishImport(res) {
+              showToast(t("node-batch-result").replace("{ok}", res.ok).replace("{fail}", res.fail));
+              document.getElementById("importPass").value = "";
+              input.value = ""; input._file = null;
+              loadNodeList();
+          }
+      } catch (e) {
+          showToast(e.message || t("op-err"));
+      }
+  };
+  reader.readAsArrayBuffer(file);
 }

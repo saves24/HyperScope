@@ -77,6 +77,12 @@
     <string name="added_nodes">已添加节点</string>
     <string name="no_nodes_short">暂无节点</string>
     <string name="delete">删除</string>
+    <string name="confirm">确定</string>
+    <string name="import_config">导入配置 (.hsxc)</string>
+    <string name="import_config_hint">从面板导出的加密 .hsxc 文件导入节点。解密在手机本地完成。</string>
+    <string name="import_pass_title">输入口令</string>
+    <string name="import_pass">口令</string>
+    <string name="import_not_hsx">不是有效的 .hsxc 文件</string>
     <string name="theme">主题</string>
     <string name="theme_auto">自动</string>
     <string name="theme_light">浅色</string>

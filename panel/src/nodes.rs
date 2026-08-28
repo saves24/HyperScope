@@ -1,7 +1,7 @@
 use crate::{
     current_user, fetch_json, http_request_json, is_admin, log_write, node_visible,
     resolve_safe_addr, save_nodes, Duration, HttpOptions, JsonExtract, NodeConfig, NodeState,
-    SharedState, StatusCode, EVENTS_FILE,
+    SharedState, StatusCode, EVENTS_FILE, NOTIF_FILE,
 };
 // Node configuration, state and API handlers
 use axum::{

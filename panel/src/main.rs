@@ -6,11 +6,12 @@ pub(crate) use hyper_panel_core::history;
 pub(crate) use hyper_panel_core::ssrf_blocked;
 pub(crate) use hyper_panel_core::{
     atomic_write, background_poller, config_mtime, fetch_json, gen_random_password,
-    generate_node_id, http_request_json, load_events_from_file, load_nodes, log_write,
-    node_visible, now_unix, resolve_safe_addr, save_nodes, set_retention_days, sha256_hex,
-    tail_log, urlencode, valid_user_name, validate_password_only, validate_user_input,
-    validate_user_name_only, AppState, HttpOptions, NodeConfig, NodeState, SharedState, User,
-    AUTH_FILE, EVENTS_FILE, LOG_DIR, SETTINGS_FILE,
+    generate_node_id, http_request_json, load_events_from_file, load_notifications_from_file,
+    load_nodes, log_write, node_visible, now_unix, resolve_safe_addr, save_nodes,
+    set_retention_days, sha256_hex, tail_log, urlencode, valid_user_name,
+    validate_password_only, validate_user_input, validate_user_name_only, AppState,
+    HttpOptions, NodeConfig, NodeState, SharedState, User, AUTH_FILE, EVENTS_FILE, LOG_DIR,
+    NOTIF_FILE, SETTINGS_FILE,
 };
 // hyper-panel - system monitoring panel aggregator (Rust)
 // Role: node management (CLI+API) + background agent polling + in-memory cache + frontend

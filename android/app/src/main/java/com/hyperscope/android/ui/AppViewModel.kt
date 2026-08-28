@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hyperscope.android.data.NodeClient
+import com.hyperscope.android.data.HsxCodec
 import com.hyperscope.android.data.NodeConfig
 import com.hyperscope.android.data.NotifItem
 import com.hyperscope.android.data.NodeView
@@ -195,6 +196,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _nodes.value = _nodes.value + NodeView(config = cfg)
             if (_selected.value == null) _selected.value = cfg.name
             startPolling()
+        }
+    }
+
+    /**
+     * Imports nodes from an encrypted .hsxc file (decrypted fully on-device).
+     * New nodes are appended; a node whose name already exists is skipped
+     * (dedup by name, mirroring the panel's unique-name rule).
+     */
+    fun importNodes(fileBytes: ByteArray, passphrase: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val payload = HsxCodec.decrypt(fileBytes, passphrase)
+                val existing = _nodes.value.map { it.config.name }.toHashSet()
+                val new = payload.nodes.filter { !existing.contains(it.name) && it.name.isNotBlank() }
+                if (new.isEmpty()) {
+                    onResult("No new nodes to import (already present or empty)")
+                    return@launch
+                }
+                val cfgs = new.map { NodeConfig(name = it.name, addr = it.addr, port = it.port.takeIf { p -> p > 0 } ?: 5000, key = it.key) }
+                val full = _nodes.value.map { it.config } + cfgs
+                store.saveNodes(full)
+                _nodes.value = _nodes.value + cfgs.map { NodeView(config = it) }
+                if (_selected.value == null) _selected.value = cfgs.first().name
+                startPolling()
+                onResult("Imported ${cfgs.size} node(s) from config")
+            } catch (e: IllegalArgumentException) {
+                onResult(e.message ?: "Import failed")
+            }
         }
     }
 
