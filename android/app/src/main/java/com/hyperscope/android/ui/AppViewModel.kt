@@ -54,6 +54,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // Tracks previously-active alert keys per node to avoid re-firing each cycle.
     private val activeAlerts = HashMap<String, List<String>>()
 
+    // Bumped on every poll so each NodeView.seq differs and StateFlow always
+    // notifies collectors (data-class equals would suppress identical results).
+    private var refreshSeq = 0L
+
     private var refreshJob: Job? = null
 
     init {
@@ -137,19 +141,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun refreshAll() {
         val views = _nodes.value
+        refreshSeq++
+        val seq = refreshSeq
         val updated = views.map { view ->
             try {
                 val sys = client.system(view.config)
                 val disks = client.disks(view.config).disks
                 val procs = client.processes(view.config).processes
-                view.copy(system = sys, disks = disks, processes = procs, online = true, error = null)
+                view.copy(system = sys, disks = disks, processes = procs, online = true, error = null, seq = seq)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // A cancelled request (e.g. leaving the screen) must not be shown
                 // as a node failure nor abort the whole batch: keep the node's
                 // previous state so the UI never flips to offline on cancel.
-                view
+                view.copy(seq = seq)
             } catch (e: Exception) {
-                view.copy(online = false, error = e.message)
+                view.copy(online = false, error = e.message, seq = seq)
             }
         }
         _nodes.value = updated

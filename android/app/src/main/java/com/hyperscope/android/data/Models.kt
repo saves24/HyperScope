@@ -78,4 +78,10 @@ data class NodeView(
     val processes: List<ProcInfo> = emptyList(),
     val online: Boolean = false,
     val error: String? = null,
+    /**
+     * Monotonic refresh counter. Bumped on every poll so the StateFlow value
+     * always differs (data-class equals would otherwise suppress notifications
+     * when consecutive polls produce identical results, leaving the UI stale).
+     */
+    val seq: Long = 0,
 )
