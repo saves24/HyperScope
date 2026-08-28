@@ -345,6 +345,8 @@ async fn cmd_serve(port: u16) -> i32 {
         ),
         config_mtime: Mutex::new(config_mtime()),
         events: Mutex::new(load_events_from_file()),
+        notifications: Mutex::new(load_notifications_from_file()),
+        active_alerts: Mutex::new(HashMap::new()),
         tokens: Mutex::new(Vec::new()),
         auth: Mutex::new(auth),
         conns: Mutex::new(HashMap::new()),
@@ -413,6 +415,10 @@ async fn cmd_serve(port: u16) -> i32 {
         .route("/api/push", post(push_handler))
         .route("/api/events/clear", delete(events_clear_handler))
         .route("/api/events", get(events_handler))
+        .route(
+            "/api/notifications",
+            get(notifications_handler).delete(notifications_clear_handler),
+        )
         .route("/health", get(health_handler))
         .layer(axum::middleware::from_fn_with_state(
             app_state.clone(),

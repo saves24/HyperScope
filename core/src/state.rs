@@ -114,6 +114,12 @@ pub struct AppState {
     pub config_mtime: Mutex<Option<std::time::SystemTime>>,
     // Event log (node offline/online etc., keep at most 100 entries)
     pub events: Mutex<Vec<Value>>,
+    // Alert notifications (CPU/mem/disk/temp/docker anomalies), separate from
+    // the event log so clearing notifications never touches event history.
+    pub notifications: Mutex<Vec<Value>>,
+    // Active resource alerts per node id: node_id -> alert keys currently raised
+    // (used to avoid re-triggering the same alert every poll cycle)
+    pub active_alerts: Mutex<HashMap<String, Vec<String>>>,
     // Login token: token + expiry + owning user
     pub tokens: Mutex<Vec<(String, u64, String)>>,
     // Auth config: user list (auth.json)

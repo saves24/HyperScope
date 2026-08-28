@@ -79,6 +79,47 @@ sudo hyper-panel user passwd admin
 - `deploy/install-windows.bat`：用于安装 Windows 采集端服务
 - `deploy/uninstall-windows.bat`：用于卸载 Windows 采集端服务
 
+#### 脚本安装（推荐）
+
+脚本会把采集端注册为 Windows 服务（开机自启、无需登录）。**以管理员身份**打开 PowerShell，在仓库 `deploy/` 目录下执行：
+
+```bat
+:: 带指定 key 安装
+deploy\install-windows.bat <你的API Key>
+
+:: 或先不设 key（之后手动设置）
+deploy\install-windows.bat
+```
+
+脚本会依次完成：
+
+1. 从最新 Release 下载 `hyper-node-windows-amd64.exe` 到 `C:\ProgramData\hyper-node\`
+2. 设置 API Key（传入参数时），并把 key 文件权限收紧为仅 `SYSTEM`/`Administrators` 可读
+3. 开放入站防火墙规则 TCP `5000`（仅专用/域网络）
+4. 注册并启动 `hyper-node` 服务（自动启动）
+
+安装后验证并获取 Key：
+
+```powershell
+sc query hyper-node                          # 服务状态（应为 RUNNING）
+C:\ProgramData\hyper-node\hyper-node.exe key show   # 复制完整值（含 |SHA256:... 指纹）
+```
+
+然后在面板添加节点：地址 `IP:5000` + 完整 Key。
+
+卸载（同样以管理员身份）：
+
+```bat
+deploy\uninstall-windows.bat
+```
+
+注意事项：
+
+- 脚本下载使用 `Invoke-WebRequest`；若被 PowerShell 拦截，先允许 TLS 1.2：`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+- 服务无需登录用户即可运行。如需前台运行（如调试），用 `hyper-node.exe serve`
+- 若需纯出站（不开放入站端口），见下方"反向推送模式"
+- Windows 指标使用 `sysinfo`，温度在可用时使用 WMI，重启和关机使用 Windows 原生命令。
+
 ### 反向推送模式
 
 节点可以主动出站连接面板，而不必监听面板请求：

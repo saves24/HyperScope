@@ -2,6 +2,7 @@ use crate::{
     config_mtime, fetch_json, history, load_nodes, log_write, record_event, save_nodes,
     tls_connect, NodeConfig, NodeState, SharedState,
 };
+use crate::alerts::check_alerts;
 // Background polling of nodes
 use serde_json::Value;
 use std::time::Duration;
@@ -150,6 +151,7 @@ pub async fn background_poller(app: SharedState) {
 
         // Write back results (short lock)
         let mut nodes = app.nodes.lock().await;
+        let mut alerts_todo: Vec<(NodeConfig, Value)> = Vec::new();
         for ns in nodes.iter_mut() {
             let Some((data, status, fp)) = by_id.get(&ns.config.id) else {
                 continue; // push-mode node: updated via /api/push or /ws, not polled
@@ -184,6 +186,8 @@ pub async fn background_poller(app: SharedState) {
             // Keep existing data on poll failure (avoid empty frontend cards); update status only
             if data.is_some() {
                 ns.data = data.clone();
+                // collect for post-lock alert check (system snapshot)
+                alerts_todo.push((ns.config.clone(), data.clone().unwrap()));
             }
             ns.status = status.clone();
             // Persist history every ~60s per node (dedupe by node name + minute bucket)
@@ -237,6 +241,39 @@ pub async fn background_poller(app: SharedState) {
             }
         }
         drop(nodes);
+        // Alert check: after releasing the nodes lock, fetch docker status and
+        // run anomaly detection for each online node with a fresh snapshot.
+        if !alerts_todo.is_empty() {
+            let docker_results: Vec<(String, Vec<Value>)> =
+                futures::future::join_all(alerts_todo.iter().map(|(c, _)| {
+                    let app = app.clone();
+                    let c = c.clone();
+                    async move {
+                        let v = fetch_json(
+                            &app,
+                            &format!("{}/docker", c.base_url()),
+                            &c.key,
+                            Duration::from_secs(5),
+                            &c.cert_fp,
+                        )
+                        .await
+                        .unwrap_or(Value::Null);
+                        let containers: Vec<Value> = v
+                            .get("containers")
+                            .and_then(|x| x.as_array())
+                            .cloned()
+                            .unwrap_or_default();
+                        (c.id.clone(), containers)
+                    }
+                }))
+                .await;
+            let docker_by_id: std::collections::HashMap<String, Vec<Value>> =
+                docker_results.into_iter().collect();
+            for (c, data) in alerts_todo.iter() {
+                let dock = docker_by_id.get(&c.id).map(|v| v.as_slice());
+                check_alerts(&app, &c.id, &c.name, data, dock).await;
+            }
+        }
         // Persist newly recorded fingerprints to disk (read config once)
         let cfg_disk = load_nodes();
         let need_save = {

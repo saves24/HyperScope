@@ -38,6 +38,9 @@ class NodeClient(
             runCatching { json.decodeFromString(ProcessesResponse.serializer(), it) }.getOrDefault(ProcessesResponse())
         }
 
+    suspend fun docker(node: NodeConfig): DockerResponse =
+        get(node, "/docker").let { runCatching { json.decodeFromString(DockerResponse.serializer(), it) }.getOrDefault(DockerResponse()) }
+
     suspend fun health(node: NodeConfig): Boolean =
         try { get(node, "/health").let { it.isNotBlank() } } catch (_: Exception) { false }
 

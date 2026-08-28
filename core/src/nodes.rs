@@ -18,6 +18,11 @@ pub const EVENTS_FILE: &str = "/var/log/hyper-panel/events.json";
 #[cfg(target_os = "windows")]
 pub const EVENTS_FILE: &str = "C:\\ProgramData\\hyper-panel\\logs\\events.json";
 
+#[cfg(target_os = "linux")]
+pub const NOTIF_FILE: &str = "/var/log/hyper-panel/notifications.json";
+#[cfg(target_os = "windows")]
+pub const NOTIF_FILE: &str = "C:\\ProgramData\\hyper-panel\\logs\\notifications.json";
+
 pub async fn record_event(app: &SharedState, node: &str, kind: &str, msg: String) {
     let mut events = app.events.lock().await;
     let ev = json!({
@@ -33,6 +38,66 @@ pub async fn record_event(app: &SharedState, node: &str, kind: &str, msg: String
     }
     drop(events);
     append_event_file(&ev);
+}
+pub async fn record_notification(app: &SharedState, node: &str, msg: String) {
+    let mut notifs = app.notifications.lock().await;
+    let ev = json!({
+        "time": format_time(now_unix()),
+        "node": node,
+        "kind": "alert",
+        "msg": msg,
+    });
+    notifs.push(ev.clone());
+    let len = notifs.len();
+    if len > 100 {
+        notifs.drain(0..(len - 100));
+    }
+    drop(notifs);
+    append_notif_file(&ev);
+}
+pub fn append_notif_file(ev: &Value) {
+    if let Err(error) = fs::create_dir_all(LOG_DIR) {
+        eprintln!("notification log directory unavailable: {error}");
+        return;
+    }
+    let path = NOTIF_FILE.to_string();
+    let line = format!("{}\n", serde_json::to_string(ev).unwrap_or_default());
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&path) {
+        use std::io::Write;
+        if let Err(error) = f.write_all(line.as_bytes()) {
+            eprintln!("notification log write failed: {error}");
+        }
+    }
+    // Truncate check: keep the file bounded (same policy as events)
+    if let Ok(content) = fs::read_to_string(&path) {
+        let lines = content.lines().count();
+        if lines > 500 {
+            let keep: Vec<&str> = content.lines().rev().take(200).collect();
+            let mut new = String::new();
+            for l in keep.into_iter().rev() {
+                new.push_str(l);
+                new.push('\n');
+            }
+            let _ = crate::atomic_write(&path, &new, 0o600);
+        }
+    }
+}
+pub fn load_notifications_from_file() -> Vec<Value> {
+    let mut out = Vec::new();
+    if let Ok(content) = fs::read_to_string(NOTIF_FILE) {
+        for line in content.lines() {
+            if let Ok(v) = serde_json::from_str::<Value>(line) {
+                if v.is_object() {
+                    out.push(v);
+                }
+            }
+        }
+    }
+    let len = out.len();
+    if len > 100 {
+        out.drain(0..(len - 100));
+    }
+    out
 }
 pub fn append_event_file(ev: &Value) {
     if let Err(error) = fs::create_dir_all(LOG_DIR) {

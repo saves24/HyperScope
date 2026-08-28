@@ -79,6 +79,47 @@ The `deploy/` directory provides installation and uninstallation scripts for the
 - `deploy/install-windows.bat`: install the Windows agent as a service
 - `deploy/uninstall-windows.bat`: uninstall the Windows agent service
 
+#### Script install (recommended)
+
+The script installs the agent as a Windows service (auto-start at boot, no logon required). Run PowerShell **as Administrator** and execute the batch file from the repository `deploy/` folder:
+
+```bat
+:: install with a specific key
+deploy\install-windows.bat <your-api-key>
+
+:: or let it skip key setup (set the key manually afterwards)
+deploy\install-windows.bat
+```
+
+What the script does:
+
+1. Downloads `hyper-node-windows-amd64.exe` from the latest release into `C:\ProgramData\hyper-node\`
+2. Sets the API key (when a key argument is given) and protects the key file so only `SYSTEM`/`Administrators` can read it
+3. Opens the inbound firewall rule for TCP `5000` (private/domain profiles only)
+4. Registers and starts the service `hyper-node` (auto start)
+
+After install, verify and get the key:
+
+```powershell
+sc query hyper-node          # service state (should be RUNNING)
+C:\ProgramData\hyper-node\hyper-node.exe key show   # copy the full value incl. |SHA256:... fingerprint
+```
+
+Then add the node in the panel: address `IP:5000` + the full key.
+
+To uninstall (also as Administrator):
+
+```bat
+deploy\uninstall-windows.bat
+```
+
+Notes:
+
+- The script uses `Invoke-WebRequest` for the download; if PowerShell blocks it, allow TLS 1.2 first: `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`
+- The service runs without a logged-on user. To run in the foreground instead (e.g. for testing), use `hyper-node.exe serve`
+- For outbound-only setups (no inbound port open), see the reverse push mode below
+- Windows metrics use `sysinfo`; temperature uses WMI when available, and reboot/shutdown use the native Windows command.
+
 ### Reverse push mode
 
 Nodes can connect outbound to the panel instead of listening for panel requests:

@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -25,7 +25,7 @@ import com.hyperscope.android.R
 
 // Nodes are selected from the top bar of the Dashboard, not the bottom nav.
 enum class Tab(val labelRes: Int, val icon: ImageVector) {
-    Dashboard(R.string.tab_dashboard, Icons.Filled.Dashboard),
+    Dashboard(R.string.tab_dashboard, Icons.Filled.Home),
     History(R.string.tab_history, Icons.Filled.List),
     Logs(R.string.tab_logs, Icons.Filled.Info),
     Settings(R.string.tab_settings, Icons.Filled.Settings),

@@ -57,7 +57,7 @@ fun DashboardScreen(vm: AppViewModel) {
     val active = sorted.firstOrNull { it.config.name == selected } ?: sorted.firstOrNull()
 
     Column(Modifier.fillMaxSize()) {
-        GreetingBar()
+        GreetingBar(vm)
         NodeSectionHeader(sort = sort, onSort = vm::setSort, onAddNode = { showAdd = true })
         NodeBar(nodes = sorted, selected = active?.config?.name, onSelect = vm::selectNode)
 
@@ -73,7 +73,7 @@ fun DashboardScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun GreetingBar() {
+private fun GreetingBar(vm: AppViewModel) {
     val now = Calendar.getInstance()
     val hour = now.get(Calendar.HOUR_OF_DAY)
     val greeting = when {
@@ -93,6 +93,8 @@ private fun GreetingBar() {
             Text(date, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
         }
+        Spacer(Modifier.width(10.dp))
+        NotificationsBell(vm)
     }
 }
 

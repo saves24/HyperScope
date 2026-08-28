@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hyperscope.android.data.NodeClient
 import com.hyperscope.android.data.NodeConfig
+import com.hyperscope.android.data.NotifItem
 import com.hyperscope.android.data.NodeView
 import com.hyperscope.android.data.SettingsStore
 import kotlinx.coroutines.Job
@@ -15,6 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.HashMap
+import java.util.Locale
+import kotlin.math.roundToInt
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val store = SettingsStore(app)
@@ -40,6 +46,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
+
+    private val _notifications = MutableStateFlow<List<NotifItem>>(emptyList())
+    val notifications: StateFlow<List<NotifItem>> = _notifications.asStateFlow()
+
+    // Tracks previously-active alert keys per node to avoid re-firing each cycle.
+    private val activeAlerts = HashMap<String, List<String>>()
 
     private var refreshJob: Job? = null
 
@@ -121,7 +133,59 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         _nodes.value = updated
+        detectNotifications(updated)
     }
+
+    private suspend fun detectNotifications(views: List<NodeView>) {
+        var added = false
+        val time = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
+        for (view in views) {
+            if (!view.online) continue
+            val id = view.config.name
+
+            // Resource alerts only (no online/offline notifications)
+            val sys = view.system ?: continue
+            val keys = ArrayList<String>()
+            if (sys.cpu >= 90.0) keys.add("cpu:${sys.cpu.roundToInt()}")
+            if (sys.mem_percent >= 90.0) keys.add("mem:${sys.mem_percent.roundToInt()}")
+            if (sys.disk_percent >= 90.0) keys.add("disk:${sys.disk_percent.roundToInt()}")
+            sys.cpu_temp_raw?.let { if (it >= 85.0) keys.add("temp:${it.roundToInt()}") }
+            // Docker containers not running
+            try {
+                val dock = client.docker(view.config).containers
+                dock.filter { !it.running }.forEach { keys.add("docker:${it.name}") }
+            } catch (_: Exception) {}
+
+            val prev = activeAlerts[id] ?: emptyList()
+            for (key in keys) {
+                if (!prev.contains(key)) {
+                    _notifications.value = _notifications.value + NotifItem(
+                        time = time, node = view.config.name, kind = "alert", msg = alertMessage(key),
+                    )
+                    added = true
+                }
+            }
+            activeAlerts[id] = keys
+        }
+        if (added) {
+            // keep the list bounded
+            val list = _notifications.value
+            if (list.size > 100) _notifications.value = list.takeLast(100)
+        }
+    }
+
+    private fun alertMessage(key: String): String {
+        return when {
+            key.startsWith("cpu:") -> "CPU high: ${key.removePrefix("cpu:")}%"
+            key.startsWith("mem:") -> "Memory high: ${key.removePrefix("mem:")}%"
+            key.startsWith("disk:") -> "Disk high: ${key.removePrefix("disk:")}%"
+            key.startsWith("temp:") -> "Temperature high: ${key.removePrefix("temp:")}°C"
+            key.startsWith("docker:") -> "Container not running: ${key.removePrefix("docker:")}"
+            else -> key
+        }
+    }
+
+    fun clearNotifications() { _notifications.value = emptyList() }
 
     fun addNode(name: String, addr: String, port: Int, key: String) {
         viewModelScope.launch {

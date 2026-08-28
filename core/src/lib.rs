@@ -2,6 +2,7 @@
 pub const VERSION: &str = "0.1.0";
 // Used by both the Linux web panel and the future Windows desktop client.
 pub mod client;
+pub mod alerts;
 pub mod history;
 pub mod logging;
 pub mod nodes;

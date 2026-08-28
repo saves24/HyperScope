@@ -131,6 +131,20 @@
             <div class="menu-item" onclick="event.stopPropagation();toggleSettingsPanel();closeHeaderMenu()" data-i18n="settings-menu">设置</div>
             <div class="menu-item" style="color:#dc2626;" onclick="logout()" data-i18n="logout">退出登录</div>
         </div>
+        <button class="header-menu-btn bell-btn" id="bellBtn" onclick="toggleNotifications(event)" title="通知">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-4.5-5.8V4a1.5 1.5 0 0 0-3 0v1.2A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+            <span class="bell-dot" id="bellDot"></span>
+        </button>
+        <div class="notif-panel" id="notifPanel">
+            <div class="notif-head">
+                <span data-i18n="notif-title">通知</span>
+                <span class="notif-head-right">
+                    <span class="notif-count" id="notifCount"></span>
+                    <button class="notif-clear" id="notifClear" onclick="clearNotifications(event)" data-i18n="notif-clear">清空</button>
+                </span>
+            </div>
+            <div class="notif-body" id="notifBody"><div class="empty-hint" data-i18n="notif-empty">--</div></div>
+        </div>
     </div>
     <div class="greet-bar">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="vertical-align:-4px;margin-right:6px;"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm0-14h-2v6h5v-2h-3V6z"/></svg>

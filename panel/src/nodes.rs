@@ -525,3 +525,30 @@ pub(crate) async fn events_clear_handler(
     let _ = crate::atomic_write(EVENTS_FILE, "", 0o600);
     (StatusCode::OK, Json(json!({"ok": true}))).into_response()
 }
+
+// GET /api/notifications — alert notifications only (separate from event log)
+pub(crate) async fn notifications_handler(
+    State(app): State<SharedState>,
+) -> impl IntoResponse {
+    let notifs = app.notifications.lock().await;
+    Json(json!({ "notifications": notifs.clone() }))
+}
+
+// DELETE /api/notifications — clear alert notifications only (never touches events)
+pub(crate) async fn notifications_clear_handler(
+    State(app): State<SharedState>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let user = current_user(&headers);
+    let admin = is_admin(&app, &user).await;
+    if !admin {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "admin required"})),
+        )
+            .into_response();
+    }
+    app.notifications.lock().await.clear();
+    let _ = crate::atomic_write(NOTIF_FILE, "", 0o600);
+    (StatusCode::OK, Json(json!({"ok": true}))).into_response()
+}

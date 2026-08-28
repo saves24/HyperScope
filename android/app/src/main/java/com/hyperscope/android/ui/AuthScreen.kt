@@ -1,7 +1,9 @@
 package com.hyperscope.android.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,39 +36,43 @@ fun AuthScreen(vm: AppViewModel, setup: Boolean) {
     var pass by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
 
-    Column(
-        Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("HyperScope", style = MaterialTheme.typography.headlineMedium)
-        Text(if (setup) stringResource(R.string.auth_setup_title) else stringResource(R.string.auth_login_title),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
-
-        Spacer(Modifier.height(12.dp))
-        LanguagePicker(lang = lang, onSelect = vm::setLang)
-
-        Spacer(Modifier.height(24.dp))
-        OutlinedTextField(value = user, onValueChange = { user = it },
-            label = { Text(stringResource(R.string.auth_username)) }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(value = pass, onValueChange = { pass = it },
-            label = { Text(stringResource(R.string.auth_password)) }, modifier = Modifier.fillMaxWidth())
-        if (setup) {
+    // Language picker is anchored in the top bar (outside the scroll/center
+    // container) so its dropdown stays correctly aligned under the button.
+    Box(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(12.dp)) {
+            Spacer(Modifier.weight(1f))
+            LanguagePicker(lang = lang, onSelect = vm::setLang)
+        }
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("HyperScope", style = MaterialTheme.typography.headlineMedium)
+            Text(if (setup) stringResource(R.string.auth_setup_title) else stringResource(R.string.auth_login_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+            Spacer(Modifier.height(28.dp))
+            OutlinedTextField(value = user, onValueChange = { user = it },
+                label = { Text(stringResource(R.string.auth_username)) }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(value = confirm, onValueChange = { confirm = it },
-                label = { Text(stringResource(R.string.auth_confirm)) }, modifier = Modifier.fillMaxWidth())
-        }
-        authError?.let {
-            Spacer(Modifier.height(10.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-        }
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = {
-            if (setup) vm.setup(user, pass, confirm) else vm.login(user, pass)
-        }, modifier = Modifier.fillMaxWidth()) {
-            Text(if (setup) stringResource(R.string.auth_setup_action) else stringResource(R.string.auth_login_action))
+            OutlinedTextField(value = pass, onValueChange = { pass = it },
+                label = { Text(stringResource(R.string.auth_password)) }, modifier = Modifier.fillMaxWidth())
+            if (setup) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(value = confirm, onValueChange = { confirm = it },
+                    label = { Text(stringResource(R.string.auth_confirm)) }, modifier = Modifier.fillMaxWidth())
+            }
+            authError?.let {
+                Spacer(Modifier.height(10.dp))
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(20.dp))
+            Button(onClick = {
+                if (setup) vm.setup(user, pass, confirm) else vm.login(user, pass)
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (setup) stringResource(R.string.auth_setup_action) else stringResource(R.string.auth_login_action))
+            }
         }
     }
 }
