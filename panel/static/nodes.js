@@ -550,7 +550,9 @@ const HSX_ITER = 200000;
 // ==== .hsxc codec backed by node-forge (works over plain HTTP, no WebCrypto needed) ====
 // File layout: "HSX1" + salt(16) + iv(12) + AES-256-GCM ciphertext.
 function hsxDeriveKey(pass, salt) {
-  return forge.pkcs5.pbkdf2(pass, salt, HSX_ITER, 32); // 32 bytes = AES-256
+  // forge pbkdf2 default uses SHA-1; explicitly request SHA-256 so the derived
+  // key matches Android (PBKDF2WithHmacSHA256). salt must be a binary string.
+  return forge.pkcs5.pbkdf2(pass, salt, HSX_ITER, 32, forge.md.sha256.create());
 }
 function hsxEncrypt(pass, payloadObj) {
   const salt = forge.random.getBytesSync(16);
@@ -593,7 +595,7 @@ function hsxDecrypt(pass, fileBytes) {
 function exportNodes() {
   const pass = document.getElementById("exportPass").value;
   if (!pass) { showToast(t("node-export-pass-need")); return; }
-  apiFetch("/api/nodes")
+  apiFetch("/api/nodes/export")
       .then(r => r.json())
       .then(d => {
           const list = d.nodes || [];

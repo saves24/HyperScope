@@ -387,6 +387,7 @@ async fn cmd_serve(port: u16) -> i32 {
             put(users_update_handler).delete(users_delete_handler),
         )
         .route("/api/nodes", get(nodes_handler).post(add_node_handler))
+        .route("/api/nodes/export", get(nodes_export_handler))
         .route("/api/node/id/:node_id/name", put(rename_node_handler))
         .route("/api/node/id/:node_id/ping", post(ping_node_handler))
         .route("/api/node/id/:node_id", delete(remove_node_handler))

@@ -44,6 +44,37 @@ pub(crate) async fn nodes_handler(
         .collect();
     Json(json!({ "nodes": list }))
 }
+// Admin-only: full node list including addr/port/key for .hsxc export.
+// Deliberately separate from /api/nodes (which omits keys) so ordinary listing
+// never leaks credentials, while a signed-in admin can still export a backup.
+pub(crate) async fn nodes_export_handler(
+    headers: HeaderMap,
+    State(app): State<SharedState>,
+) -> impl IntoResponse {
+    let user = current_user(&headers);
+    let admin = is_admin(&app, &user).await;
+    if !admin {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({ "error": "admin required" })),
+        )
+            .into_response();
+    }
+    let nodes = app.nodes.lock().await;
+    let list: Vec<Value> = nodes
+        .iter()
+        .map(|ns| {
+            json!({
+                "name": ns.config.name,
+                "addr": ns.config.addr,
+                "port": ns.config.port,
+                "key": ns.config.key,
+                "tls": ns.config.tls,
+            })
+        })
+        .collect();
+    (StatusCode::OK, Json(json!({ "nodes": list }))).into_response()
+}
 pub(crate) async fn add_node_handler(
     headers: HeaderMap,
     State(app): State<SharedState>,
