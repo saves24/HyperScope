@@ -400,20 +400,19 @@
             </div>
         </div>
 
-        <!-- batch add + local import (merged into one pane) -->
+        <!-- batch add + file import (one button: file if selected, else pasted text) -->
         <div class="nm-pane" id="nmBatch" style="display:none;">
-            <label class="nm-file" for="importFile">
+            <small class="add-hint" data-i18n="node-batch-hint">每行一个节点：地址[:端口],key[,名称]，或选择 .hsxc 配置导入</small>
+            <textarea class="modal-search nm-textarea" id="batchNodes" rows="6" placeholder="192.168.1.100:5000,abc123,node1&#10;192.168.1.101,xyz789,node2"></textarea>
+            <label class="nm-file" for="importFile" style="margin-top:10px;">
                 <span data-i18n="node-import-choose">选择 .hsxc 文件</span>
                 <input type="file" id="importFile" accept=".hsxc" onchange="onImportFileSelected(this)">
             </label>
-            <label class="add-field" style="margin-top:8px;"><span data-i18n="node-import-pass">口令</span>
+            <label class="add-field" style="margin-top:8px;display:none;" id="importPassWrap">
+                <span data-i18n="node-import-pass">口令</span>
                 <input class="modal-search" id="importPass" type="password" placeholder="口令">
             </label>
-            <div class="nm-divider"></div>
-            <small class="add-hint" data-i18n="node-batch-hint">或手动粘贴：每行一个节点：地址[:端口],key[,名称]</small>
-            <textarea class="modal-search nm-textarea" id="batchNodes" rows="6" placeholder="192.168.1.100:5000,abc123,node1&#10;192.168.1.101,xyz789,node2"></textarea>
             <div class="add-actions" style="display:flex;gap:8px;justify-content:flex-end;">
-                <button class="modal-btn" onclick="importFromFile()" data-i18n="node-import">本地导入</button>
                 <button class="modal-btn" onclick="batchAddNodes()" data-i18n="node-batch-add">批量添加</button>
             </div>
         </div>
@@ -533,14 +532,14 @@
 
 <div class="toast" id="toast">已复制</div>
 
-<script src="/static/forge.min.js?v=20260828g1"></script>
-<script src="/static/utils.js?v=20260828g1"></script>
-        <script src="/static/api.js?v=20260828g1"></script>
-        <script src="/static/nodes.js?v=20260828g1"></script>
-        <script src="/static/dashboard.js?v=20260828g1"></script>
-        <script src="/static/history.js?v=20260828g1"></script>
-        <script src="/static/logs.js?v=20260828g1"></script>
-        <script src="/static/panel.js?v=20260828g1"></script>
+<script src="/static/forge.min.js?v=20260828g2"></script>
+<script src="/static/utils.js?v=20260828g2"></script>
+        <script src="/static/api.js?v=20260828g2"></script>
+        <script src="/static/nodes.js?v=20260828g2"></script>
+        <script src="/static/dashboard.js?v=20260828g2"></script>
+        <script src="/static/history.js?v=20260828g2"></script>
+        <script src="/static/logs.js?v=20260828g2"></script>
+        <script src="/static/panel.js?v=20260828g2"></script>
 
 <!-- Docker modal -->
 <div class="modal-mask" id="dockerModal" onclick="closeModal('dockerModal', event)">

@@ -174,6 +174,50 @@ function nmTab(tab) {
   if (tab === "del") loadNmDelList();
 }
 function batchAddNodes() {
+  // If a .hsxc file is selected, import from it (requires passphrase); else parse pasted text.
+  const input = document.getElementById("importFile");
+  const file = input && input._file;
+  if (file) {
+      const pass = document.getElementById("importPass").value;
+      if (!pass) { showToast(t("node-import-pass-need")); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+          try {
+              const payload = hsxDecrypt(pass, reader.result);
+              const nodes = payload.nodes || [];
+              if (!nodes.length) { showToast(t("node-import-empty")); return; }
+              const results = { ok: 0, fail: 0 };
+              let done = 0;
+              nodes.forEach(n => {
+                  const key = n.key || "";
+                  apiFetch("/api/nodes", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ name: n.name || n.addr, addr: n.addr, port: n.port || 5000, key, tls: key.includes("|") ? true : !!n.tls })
+                  })
+                    .then(r => r.json())
+                    .then(d => { d && d.ok ? results.ok++ : results.fail++; })
+                    .catch(() => { results.fail++; })
+                    .finally(() => { done++; if (done >= nodes.length) { finishImport(results); } });
+              });
+              function finishImport(res) {
+                  showToast(t("node-batch-result").replace("{ok}", res.ok).replace("{fail}", res.fail));
+                  document.getElementById("importPass").value = "";
+                  input.value = ""; input._file = null;
+                  const label = document.querySelector("label.nm-file span");
+                  if (label) label.textContent = t("node-import-choose");
+                  const pw = document.getElementById("importPassWrap");
+                  if (pw) pw.style.display = "none";
+                  loadNodeList();
+              }
+          } catch (e) {
+              showToast(e.message || t("op-err"));
+          }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+  }
+  // No file -> batch add from pasted text
   const text = (document.getElementById("batchNodes").value || "").trim();
   if (!text) { showToast(t("node-batch-empty")); return; }
   const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
@@ -571,44 +615,7 @@ function exportNodes() {
 function onImportFileSelected(input) {
   input._file = input.files && input.files[0];
   const label = document.querySelector("label.nm-file span");
+  const passWrap = document.getElementById("importPassWrap");
   if (label && input._file) label.textContent = input._file.name;
-}
-
-function importFromFile() {
-  const input = document.getElementById("importFile");
-  const file = input && input._file;
-  const pass = document.getElementById("importPass").value;
-  if (!file) { showToast(t("node-import-nofile")); return; }
-  if (!pass) { showToast(t("node-import-pass-need")); return; }
-  const reader = new FileReader();
-  reader.onload = async () => {
-      try {
-          const payload = hsxDecrypt(pass, reader.result);
-          const nodes = payload.nodes || [];
-          if (!nodes.length) { showToast(t("node-import-empty")); return; }
-          const results = { ok: 0, fail: 0 };
-          let done = 0;
-          nodes.forEach(n => {
-              const key = n.key || "";
-              apiFetch("/api/nodes", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ name: n.name || n.addr, addr: n.addr, port: n.port || 5000, key, tls: key.includes("|") ? true : !!n.tls })
-              })
-                .then(r => r.json())
-                .then(d => { d && d.ok ? results.ok++ : results.fail++; })
-                .catch(() => { results.fail++; })
-                .finally(() => { done++; if (done >= nodes.length) { finishImport(results); } });
-          });
-          function finishImport(res) {
-              showToast(t("node-batch-result").replace("{ok}", res.ok).replace("{fail}", res.fail));
-              document.getElementById("importPass").value = "";
-              input.value = ""; input._file = null;
-              loadNodeList();
-          }
-      } catch (e) {
-          showToast(e.message || t("op-err"));
-      }
-  };
-  reader.readAsArrayBuffer(file);
+  if (passWrap && input._file) passWrap.style.display = ""; // reveal passphrase field when a file is chosen
 }
