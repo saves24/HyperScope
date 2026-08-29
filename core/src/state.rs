@@ -1,0 +1,153 @@
+// Shared state and data structures
+use crate::client::AsyncReadWrite;
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use tokio::sync::Mutex;
+
+#[cfg(target_os = "linux")]
+pub const AUTH_FILE: &str = "/etc/hyper-panel/auth.json";
+#[cfg(target_os = "windows")]
+pub const AUTH_FILE: &str = "C:\\ProgramData\\hyper-panel\\auth.json";
+pub const SETTINGS_FILE: &str = "/etc/hyper-panel/panel.json";
+
+// Node configuration
+#[derive(Clone, Debug)]
+pub struct NodeConfig {
+    pub id: String, // stable unique id (internal key for history/events; survives rename)
+    pub name: String,
+    pub addr: String,
+    pub port: u16,
+    pub key: String,
+    pub owner: String,   // owning user (admin sees all)
+    pub tls: bool,       // whether to use HTTPS connection
+    pub cert_fp: String, // node cert SHA256 fingerprint (checked when TLS; empty = unchecked)
+    pub push: bool,      // true = node pushes metrics (no listening port)
+    // Optional per-node alert overrides (defaults in alerts.rs) and a webhook
+    // URL for this node's alerts; empty = use global defaults / no webhook.
+    pub alert_cpu: Option<f64>,
+    pub alert_mem: Option<f64>,
+    pub alert_disk: Option<f64>,
+    pub alert_temp: Option<f64>,
+    pub webhook: String,
+    // Optional group/label for organising the node list (e.g. "office", "hk").
+    pub group: String,
+}
+
+impl NodeConfig {
+    pub fn from_value(v: &Value) -> Option<Self> {
+        let name = v["name"].as_str()?.trim();
+        let addr = v["addr"].as_str()?.trim();
+        let key = v["key"].as_str()?;
+        let port_raw = v["port"].as_u64()?;
+        // Validate early: reject empty name/addr/key and out-of-range port
+        if name.is_empty() || addr.is_empty() || key.is_empty() {
+            return None;
+        }
+        if port_raw == 0 || port_raw > 65535 {
+            return None; // reject truncation (70000 must not silently become 4464)
+        }
+        Some(Self {
+            // Legacy configs without id get one generated (stable per file load)
+            id: v
+                .get("id")
+                .and_then(|i| i.as_str())
+                .unwrap_or("")
+                .to_string(),
+            name: v["name"].as_str()?.to_string(),
+            addr: v["addr"].as_str()?.to_string(),
+            port: port_raw as u16,
+            key: v["key"].as_str()?.to_string(),
+            // owner defaults to admin when missing
+            owner: v
+                .get("owner")
+                .and_then(|o| o.as_str())
+                .unwrap_or("admin")
+                .to_string(),
+            // tls defaults to false (plaintext) when missing
+            tls: v.get("tls").and_then(|t| t.as_bool()).unwrap_or(false),
+            cert_fp: v
+                .get("cert_fp")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string(),
+            // push defaults to true: all nodes are reached through their
+            // hyper-relay (no direct HTTP path in the current architecture).
+            push: v.get("push").and_then(|p| p.as_bool()).unwrap_or(true),
+            alert_cpu: v.get("alert_cpu").and_then(|x| x.as_f64()),
+            alert_mem: v.get("alert_mem").and_then(|x| x.as_f64()),
+            alert_disk: v.get("alert_disk").and_then(|x| x.as_f64()),
+            alert_temp: v.get("alert_temp").and_then(|x| x.as_f64()),
+            webhook: v
+                .get("webhook")
+                .and_then(|w| w.as_str())
+                .unwrap_or("")
+                .to_string(),
+            group: v
+                .get("group")
+                .and_then(|g| g.as_str())
+                .unwrap_or("")
+                .to_string(),
+        })
+    }
+    pub fn to_value(&self) -> Value {
+        json!({ "id": self.id, "name": self.name, "addr": self.addr, "port": self.port, "key": self.key, "owner": self.owner, "tls": self.tls, "cert_fp": self.cert_fp, "push": self.push, "alert_cpu": self.alert_cpu, "alert_mem": self.alert_mem, "alert_disk": self.alert_disk, "alert_temp": self.alert_temp, "webhook": self.webhook, "group": self.group })
+    }
+    // Ensure a node has an id (legacy configs); called on load
+    pub fn ensure_id(&mut self) {
+        if self.id.is_empty() {
+            self.id = crate::generate_node_id();
+        }
+    }
+}
+
+// Node state cache
+#[derive(Clone)]
+pub struct NodeState {
+    pub config: NodeConfig,
+    pub data: Option<Value>,
+    pub data_ts: u64, // push timestamp (dedupe WS vs POST)
+    pub traffic_cache: Option<Value>,
+    pub io_cache: Option<Value>,
+    pub status: String, // online | offline | unauthorized | unknown
+}
+
+// Auth user: name + salt + password hash + admin flag (admin is a role, not tied to username)
+#[derive(Clone)]
+pub struct User {
+    pub name: String,
+    pub salt: String,
+    pub hash: String,
+    pub is_admin: bool,
+}
+
+// Plaintext TCP and TLS streams share the same read/write trait
+
+pub struct AppState {
+    pub nodes: Mutex<Vec<NodeState>>,
+    // Config file mtime, used to reload after external edits
+    pub config_mtime: Mutex<Option<std::time::SystemTime>>,
+    // Event log (node offline/online etc., keep at most 100 entries)
+    pub events: Mutex<Vec<Value>>,
+    // Alert notifications (CPU/mem/disk/temp/docker anomalies), separate from
+    // the event log so clearing notifications never touches event history.
+    pub notifications: Mutex<Vec<Value>>,
+    // Active resource alerts per node id: node_id -> alert keys currently raised
+    // (used to avoid re-triggering the same alert every poll cycle)
+    pub active_alerts: Mutex<HashMap<String, Vec<String>>>,
+    // Login token: token + expiry + owning user
+    pub tokens: Mutex<Vec<(String, u64, String)>>,
+    // Auth config: user list (auth.json)
+    pub auth: Mutex<Vec<User>>,
+    // Node connection pool (keep-alive reuse): key = "host:port:tls"
+    pub conns: Mutex<HashMap<String, Box<dyn AsyncReadWrite + Send + Unpin>>>,
+    // WebSocket connections per IP (rate limiting)
+    pub ws_connections: Mutex<HashMap<SocketAddr, u32>>,
+    // WebSocket auth failures per IP: (failure_count, ban_until)
+    pub ws_auth_failures: Mutex<HashMap<SocketAddr, (u32, std::time::Instant)>>,
+    // Trusted proxy mode: when true, use X-Forwarded-For header for real IP
+    pub allow_trusted_proxies: bool,
+}
+
+// Shared state alias used across the core and the web/desktop layers
+pub type SharedState = std::sync::Arc<AppState>;

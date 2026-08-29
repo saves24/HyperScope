@@ -1,0 +1,8 @@
+[
+  {
+    "name": "node-1",
+    "addr": "<NODE_IP_ADDRESS>",
+    "port": 5000,
+    "key": "<PASTE_KEY_FROM_hyper-node_key_show>"
+  }
+]

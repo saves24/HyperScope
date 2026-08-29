@@ -1,0 +1,19 @@
+[Unit]
+Description=HyperScope relay agent (zero-privilege pipe for collectors)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hyper-relay serve --port 8686
+Restart=always
+RestartSec=5
+# The relay must run as root so it can reach the collector's 0600 Unix socket
+# and wake it on demand. No capabilities are retained beyond that.
+User=root
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
