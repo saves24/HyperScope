@@ -1,0 +1,47 @@
+[workspace]
+members = [".", "core", "panel", "relay"]
+resolver = "2"
+
+[package]
+name = "hyper-scope"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "hyper-node"
+path = "src/main.rs"
+
+[dependencies]
+hyper-panel-core = { path = "core" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rcgen = { version = "0.13", features = ["pem", "ring"] }
+time = "0.3"
+rustls-pemfile = "2"
+sha2 = "0.10"
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+rand = "0.8"
+
+# Linux-only dependencies (not compiled on Windows)
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+regex = "1"
+
+[target.'cfg(windows)'.dependencies]
+sysinfo = "0.33"
+windows-service = "0.7"
+
+# static musl link (runs on alpine images)
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "s"

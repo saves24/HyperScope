@@ -1,0 +1,7 @@
+# Signing keys are NEVER committed. CI injects them from GitHub Secrets
+# (RELEASE_KEYSTORE base64 + RELEASE_KEYSTORE_PASSWORD).
+android/keystore/*.p12
+android/keystore/*.jks
+android/keystore/*.jks.b64
+*.p12
+*.jks

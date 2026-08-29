@@ -1,0 +1,18 @@
+[package]
+name = "hyper-panel"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "hyper-panel"
+path = "src/main.rs"
+
+[dependencies]
+hyper-panel-core = { path = "../core" }
+axum = { version = "0.7", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+serde_json = "1"
+argon2 = "0.5"
+rpassword = "7"
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
